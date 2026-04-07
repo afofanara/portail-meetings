@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Portail Meetings DGF – Spring Meetings 2026</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%23EC8D08'/><text x='16' y='22' text-anchor='middle' fill='white' font-family='Arial' font-weight='900' font-size='14'>DGF</text></svg>">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Montserrat', 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; }
+    #root { min-height: 100vh; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #FAFAF7; }
+    ::-webkit-scrollbar-thumb { background: #E8E4DD; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #8C8575; }
+    select { appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238C8575' d='M6 8L1 3h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState } = React;
+
+const O = "#EC8D08", G = "#037B3D", D = "#1a1a1a", BG = "#FAFAF7", W = "#FFFFFF", BD = "#E8E4DD", M = "#8C8575", LO = "#FEF6E6", LG = "#E8F5ED", PU = "#6D28D9", LPU = "#EDE9FE";
+
+const WEBHOOK_URL = "https://hook.eu2.make.com/plxd1fb6ahjyjtai521gg3ctzlb8qohw";
+
+const USERS = {
+  dgf: { password: "dgf2026", role: "admin", label: "DGF", name: "Direction Générale des Financements" },
+  ministere: { password: "min2026", role: "admin", label: "Ministère", name: "Cabinet du Ministre" },
+  jpmorgan: { password: "partner", role: "partner", label: "JP Morgan", name: "JP Morgan – DCM", email: "s.chen@jpmorgan.com" },
+  worldbank: { password: "partner", role: "partner", label: "World Bank", name: "World Bank – IDA", email: "m.dupont@worldbank.org" },
+  demo: { password: "demo", role: "partner", label: "Démo", name: "Partenaire (démo)", email: "demo@partner.com" },
+};
+
+const DAYS = [
+  { key: "2026-04-13", label: "Lun. 13", full: "Lundi 13 avril" },
+  { key: "2026-04-14", label: "Mar. 14", full: "Mardi 14 avril" },
+  { key: "2026-04-15", label: "Mer. 15", full: "Mercredi 15 avril" },
+  { key: "2026-04-16", label: "Jeu. 16", full: "Jeudi 16 avril" },
+  { key: "2026-04-17", label: "Ven. 17", full: "Vendredi 17 avril" },
+];
+
+const HOURS = ["08:00", "09:00", "10:00", "11:00", "14:00", "15:00", "16:00"];
+const HOUR_LABELS = { "08:00": "8h", "09:00": "9h", "10:00": "10h", "11:00": "11h", "14:00": "14h", "15:00": "15h", "16:00": "16h" };
+
+const PREF_DAYS = [
+  { value: "lun13", label: "Lundi 13", dayKey: "2026-04-13" },
+  { value: "mar14", label: "Mardi 14", dayKey: "2026-04-14" },
+  { value: "mer15", label: "Mercredi 15", dayKey: "2026-04-15" },
+  { value: "jeu16", label: "Jeudi 16", dayKey: "2026-04-16" },
+  { value: "ven17", label: "Vendredi 17", dayKey: "2026-04-17" },
+];
+const PREF_PERIODS = [
+  { value: "matin", label: "Matin (8h–12h)", hours: ["08:00", "09:00", "10:00", "11:00"] },
+  { value: "aprem", label: "Après-midi (14h–17h)", hours: ["14:00", "15:00", "16:00"] },
+  { value: "journee", label: "Journée entière", hours: ["08:00", "09:00", "10:00", "11:00", "14:00", "15:00", "16:00"] },
+];
+
+const INIT_MEETINGS = [
+  { id: 1, partner: "JP Morgan", org: "DCM", contact: "Sarah Chen", email: "s.chen@jpmorgan.com", target: "DGF", topic: "Eurobond 2026 – Pricing & Roadshow", prefs: [{ day: "mar14", period: "matin" }, { day: "mer15", period: "aprem" }], status: "confirmed", priority: "high", slot: "2026-04-14|10:00", note: "" },
+  { id: 2, partner: "World Bank", org: "IDA", contact: "Marc Dupont", email: "m.dupont@worldbank.org", target: "Ministre + DGF", topic: "Revue PND 2026–2030 & appui budgétaire", prefs: [{ day: "mar14", period: "aprem" }, { day: "jeu16", period: "matin" }], status: "pending", priority: "high", slot: null, note: "Demande prioritaire du DG" },
+  { id: 3, partner: "Standard Chartered", org: "DCM Africa", contact: "Kwame Asante", email: "k.asante@sc.com", target: "DGF", topic: "Green Bond Framework – Structuration", prefs: [{ day: "mer15", period: "matin" }, { day: "ven17", period: "matin" }], status: "confirmed", priority: "medium", slot: "2026-04-15|09:00", note: "" },
+  { id: 4, partner: "Amundi", org: "Emerging Markets", contact: "Claire Martin", email: "c.martin@amundi.com", target: "DGF", topic: "Investor Update – Trajectoire budgétaire", prefs: [{ day: "mer15", period: "aprem" }, { day: "jeu16", period: "journee" }], status: "pending", priority: "low", slot: null, note: "" },
+  { id: 5, partner: "FMI – Dpt Afrique", org: "IMF", contact: "Luc Dembélé", email: "l.dembele@imf.org", target: "Ministre + DGF", topic: "Article IV – Points de suivi", prefs: [{ day: "jeu16", period: "matin" }, { day: "lun13", period: "aprem" }], status: "pending", priority: "high", slot: null, note: "Rencontre stratégique — préparer EDL" },
+  { id: 6, partner: "Citi", org: "SSA Debt Capital Markets", contact: "James Okoye", email: "j.okoye@citi.com", target: "DGF", topic: "Benchmark 2027 – Sounding préliminaire", prefs: [{ day: "ven17", period: "matin" }, { day: "mer15", period: "journee" }], status: "pending", priority: "medium", slot: null, note: "" },
+  { id: 7, partner: "BAfD", org: "Département Pays", contact: "Aminata Diallo", email: "a.diallo@afdb.org", target: "Ministre + DGF", topic: "Co-financement infrastructure PND", prefs: [{ day: "jeu16", period: "aprem" }, { day: "ven17", period: "journee" }], status: "pending", priority: "high", slot: null, note: "" },
+];
+
+// Helpers
+const prefLabel = (p) => {
+  const d = PREF_DAYS.find(x => x.value === p.day);
+  const pr = PREF_PERIODS.find(x => x.value === p.period);
+  return `${d?.label || "?"} ${pr?.label?.split(" ")[0]?.toLowerCase() || ""}`;
+};
+
+const matchesPref = (meeting, dayKey, hour) => {
+  return meeting.prefs?.some(p => {
+    const d = PREF_DAYS.find(x => x.value === p.day);
+    const pr = PREF_PERIODS.find(x => x.value === p.period);
+    return d?.dayKey === dayKey && pr?.hours?.includes(hour);
+  });
+};
+
+// ─── COMPONENTS ───
+
+const StatusBadge = ({ status, small }) => {
+  const c = { pending: { bg: "#FEF3C7", color: "#92400E", l: "En attente" }, confirmed: { bg: LG, color: G, l: "Confirmé" }, declined: { bg: "#FEE2E2", color: "#991B1B", l: "Décliné" } }[status];
+  return <span style={{ background: c.bg, color: c.color, padding: small ? "2px 7px" : "3px 10px", borderRadius: 20, fontSize: small ? 9 : 11, fontWeight: 600, letterSpacing: 0.3, textTransform: "uppercase", whiteSpace: "nowrap" }}>{c.l}</span>;
+};
+
+const PriorityDot = ({ p }) => <span style={{ width: 8, height: 8, borderRadius: "50%", background: p === "high" ? "#DC2626" : p === "medium" ? O : M, display: "inline-block", flexShrink: 0 }} />;
+
+const TargetBadge = ({ target }) => {
+  const m = target.includes("Ministre");
+  return <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 4, background: m ? LPU : LO, color: m ? PU : O, textTransform: "uppercase", letterSpacing: 0.4, whiteSpace: "nowrap" }}>{target}</span>;
+};
+
+const NavItem = ({ icon, label, active, onClick, badge }) => (
+  <div onClick={onClick} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", borderRadius: 8, background: active ? LO : "transparent", color: active ? O : M, cursor: "pointer", fontWeight: active ? 700 : 500, fontSize: 13, transition: "all 0.15s" }}>
+    <span style={{ fontSize: 16 }}>{icon}</span><span style={{ flex: 1 }}>{label}</span>
+    {badge > 0 && <span style={{ background: "#DC2626", color: "#fff", fontSize: 10, fontWeight: 800, padding: "1px 7px", borderRadius: 10 }}>{badge}</span>}
+  </div>
+);
+
+const Card = ({ children, style }) => <div style={{ background: W, border: `1px solid ${BD}`, borderRadius: 12, padding: 24, ...style }}>{children}</div>;
+const STitle = ({ children, sub }) => <div style={{ marginBottom: 20 }}><h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: D, letterSpacing: -0.5 }}>{children}</h2>{sub && <p style={{ margin: "4px 0 0", fontSize: 13, color: M }}>{sub}</p>}</div>;
+const BlockTitle = ({ children }) => <div style={{ fontSize: 13, fontWeight: 700, color: D, marginBottom: 14, paddingBottom: 10, borderBottom: `2px solid ${O}` }}>{children}</div>;
+
+const InputField = ({ label, req, half, children, value, onChange, type = "text", placeholder, error }) => (
+  <div style={{ flex: half ? "1 1 48%" : "1 1 100%", minWidth: half ? 200 : "auto" }}>
+    <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: M, marginBottom: 5, textTransform: "uppercase", letterSpacing: 0.6 }}>{label}{req && <span style={{ color: "#DC2626" }}> *</span>}</label>
+    {children || <input type={type} value={value || ""} onChange={onChange} placeholder={placeholder} style={{ width: "100%", padding: "10px 12px", border: `1px solid ${error ? "#DC2626" : BD}`, borderRadius: 8, fontSize: 14, outline: "none", background: error ? "#FEF2F2" : BG, boxSizing: "border-box", fontFamily: "inherit" }} />}
+    {error && <div style={{ fontSize: 11, color: "#DC2626", marginTop: 4, fontWeight: 600 }}>{error}</div>}
+  </div>
+);
+
+const Sel = ({ value, onChange, options, placeholder, error }) => (
+  <select value={value} onChange={onChange} style={{ width: "100%", padding: "10px 12px", border: `1px solid ${error ? "#DC2626" : BD}`, borderRadius: 8, fontSize: 14, background: error ? "#FEF2F2" : BG, fontFamily: "inherit", cursor: "pointer", color: value ? D : M }}>
+    <option value="">{placeholder}</option>
+    {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+  </select>
+);
+
+// ─── LOGIN ───
+
+function LoginScreen({ onLogin }) {
+  const [u, setU] = useState(""); const [p, setP] = useState(""); const [err, setErr] = useState(""); const [hov, setHov] = useState(null);
+  const go = () => { const user = USERS[u.toLowerCase().trim()]; if (user && user.password === p) onLogin({ ...user, id: u.toLowerCase().trim() }); else setErr("Identifiants incorrects"); };
+  const quick = (id) => onLogin({ ...USERS[id], id });
+
+  return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: `linear-gradient(145deg, ${D} 0%, #2a2a2a 50%, #1a1a1a 100%)`, fontFamily: "'Montserrat', 'Segoe UI', sans-serif" }}>
+      <div style={{ width: 420, padding: 40 }}>
+        <div style={{ textAlign: "center", marginBottom: 40 }}>
+          <div style={{ width: 64, height: 64, borderRadius: 16, margin: "0 auto 16px", background: `linear-gradient(135deg, ${O}, ${G})`, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 900, fontSize: 22, boxShadow: "0 8px 32px rgba(236,141,8,0.3)" }}>DGF</div>
+          <h1 style={{ color: "#fff", fontSize: 22, fontWeight: 800, margin: "0 0 6px" }}>Portail Meetings</h1>
+          <div style={{ color: G, fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase" }}>République de Côte d'Ivoire</div>
+          <div style={{ color: M, fontSize: 12, marginTop: 10 }}>Spring Meetings 2026 — Washington D.C.</div>
+        </div>
+        <div style={{ background: W, borderRadius: 16, padding: 32, boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
+          <div style={{ marginBottom: 20 }}>
+            <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: M, marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.6 }}>Identifiant</label>
+            <input value={u} onChange={e => { setU(e.target.value); setErr(""); }} onKeyDown={e => e.key === "Enter" && go()} placeholder="ex : dgf, ministere" style={{ width: "100%", padding: "12px 14px", border: `1px solid ${BD}`, borderRadius: 10, fontSize: 14, outline: "none", background: BG, boxSizing: "border-box", fontFamily: "inherit" }} />
+          </div>
+          <div style={{ marginBottom: 24 }}>
+            <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: M, marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.6 }}>Mot de passe</label>
+            <input type="password" value={p} onChange={e => { setP(e.target.value); setErr(""); }} onKeyDown={e => e.key === "Enter" && go()} style={{ width: "100%", padding: "12px 14px", border: `1px solid ${BD}`, borderRadius: 10, fontSize: 14, outline: "none", background: BG, boxSizing: "border-box", fontFamily: "inherit" }} />
+          </div>
+          {err && <div style={{ color: "#DC2626", fontSize: 12, fontWeight: 600, marginBottom: 14, textAlign: "center" }}>{err}</div>}
+          <button onClick={go} style={{ width: "100%", padding: 13, background: O, color: "#fff", border: "none", borderRadius: 10, fontWeight: 800, fontSize: 14, cursor: "pointer", boxShadow: "0 4px 16px rgba(236,141,8,0.35)" }}>Se connecter</button>
+        </div>
+        <div style={{ marginTop: 28, textAlign: "center" }}>
+          <div style={{ fontSize: 11, color: M, marginBottom: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1 }}>Accès rapide (démo)</div>
+          <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
+            {[{ id: "dgf", l: "DGF", c: G }, { id: "ministere", l: "Ministère", c: G }, { id: "demo", l: "Partenaire", c: O }].map(b => (
+              <button key={b.id} onMouseEnter={() => setHov(b.id)} onMouseLeave={() => setHov(null)} onClick={() => quick(b.id)} style={{ padding: "8px 18px", borderRadius: 8, border: `1px solid ${hov === b.id ? b.c : "rgba(255,255,255,0.15)"}`, background: hov === b.id ? `${b.c}22` : "rgba(255,255,255,0.06)", color: hov === b.id ? b.c : "rgba(255,255,255,0.6)", fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}>{b.l}</button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── PARTNER: PREFERENCE SELECTOR ───
+
+function PrefSelector({ index, pref, onChange, error }) {
+  return (
+    <div style={{ flex: "1 1 100%", display: "flex", gap: 10, alignItems: "flex-end" }}>
+      <div style={{ flex: 1 }}>
+        <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: M, marginBottom: 5, textTransform: "uppercase", letterSpacing: 0.6 }}>
+          Préférence {index}{index === 1 && <span style={{ color: "#DC2626" }}> *</span>}
+        </label>
+        <Sel value={pref.day} onChange={e => onChange({ ...pref, day: e.target.value })} options={PREF_DAYS} placeholder="Jour…" error={error} />
+      </div>
+      <div style={{ flex: 1 }}>
+        <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: M, marginBottom: 5, textTransform: "uppercase", letterSpacing: 0.6 }}>&nbsp;</label>
+        <Sel value={pref.period} onChange={e => onChange({ ...pref, period: e.target.value })} options={PREF_PERIODS} placeholder="Période…" error={error} />
+      </div>
+    </div>
+  );
+}
+
+// ─── PARTNER: REQUEST FORM ───
+
+function PartnerForm({ user }) {
+  const [form, setForm] = useState({ partner: user.name || "", org: "", contact: "", email: user.email || "", phone: "", target: "DGF", topic: "", details: "" });
+  const [prefs, setPrefs] = useState([{ day: "", period: "" }, { day: "", period: "" }, { day: "", period: "" }]);
+  const [errors, setErrors] = useState({});
+  const [done, setDone] = useState(false);
+  const [sending, setSending] = useState(false);
+  const s = (k, v) => { setForm(f => ({ ...f, [k]: v })); setErrors(e => ({ ...e, [k]: undefined })); };
+
+  const validate = () => {
+    const e = {};
+    if (!form.partner.trim()) e.partner = "Champ requis";
+    if (!form.contact.trim()) e.contact = "Champ requis";
+    if (!form.email.trim()) e.email = "Champ requis";
+    else if (!/\S+@\S+\.\S+/.test(form.email)) e.email = "E-mail invalide";
+    if (!form.topic.trim()) e.topic = "Champ requis";
+    if (!prefs[0].day || !prefs[0].period) e.pref1 = "Sélectionnez au moins une préférence";
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
+
+  const handleSubmit = async () => {
+    if (!validate()) return;
+    setSending(true);
+    const prefLabelsForWebhook = prefs.filter(p => p.day && p.period).map(p => prefLabel(p));
+    try {
+      await fetch(WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          partner: form.partner,
+          org: form.org,
+          contact: form.contact,
+          email: form.email,
+          phone: form.phone,
+          target: form.target,
+          topic: form.topic,
+          details: form.details,
+          pref1: prefLabelsForWebhook[0] || "",
+          pref2: prefLabelsForWebhook[1] || "",
+          pref3: prefLabelsForWebhook[2] || "",
+        }),
+      });
+    } catch (err) {
+      console.log("Webhook fallback (CORS ou offline):", err);
+    }
+    setSending(false);
+    setDone(true);
+  };
+
+  if (sending) return (
+    <Card style={{ textAlign: "center", padding: 60 }}>
+      <div style={{ fontSize: 36, marginBottom: 16, animation: "spin 1s linear infinite" }}>⏳</div>
+      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+      <div style={{ fontSize: 18, fontWeight: 800, color: D, marginBottom: 8 }}>Envoi en cours...</div>
+      <p style={{ fontSize: 13, color: M }}>Transmission de votre demande et envoi des notifications.</p>
+    </Card>
+  );
+
+  const prefLabels = prefs.filter(p => p.day && p.period).map(p => prefLabel(p));
+
+  if (done) return (
+    <div>
+      <Card style={{ textAlign: "center", padding: 40, marginBottom: 16 }}>
+        <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
+        <div style={{ fontSize: 20, fontWeight: 800, color: D, marginBottom: 6 }}>Demande envoyée avec succès</div>
+        <p style={{ fontSize: 13, color: M, maxWidth: 440, margin: "0 auto", lineHeight: 1.7 }}>Votre demande a été enregistrée. Deux notifications ont été envoyées :</p>
+      </Card>
+
+      <Card style={{ padding: 0, marginBottom: 12, overflow: "hidden" }}>
+        <div style={{ padding: "12px 18px", background: LG, borderBottom: `1px solid #A7D5B8`, display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 14 }}>📧</span>
+          <span style={{ fontSize: 12, fontWeight: 700, color: G }}>Accusé de réception — Partenaire</span>
+          <span style={{ marginLeft: "auto", fontSize: 10, color: G, background: "#fff", padding: "2px 8px", borderRadius: 10, fontWeight: 600 }}>Envoyé</span>
+        </div>
+        <div style={{ padding: 18, fontSize: 12, color: D, lineHeight: 1.8 }}>
+          <div style={{ display: "flex", gap: 8, marginBottom: 6 }}><span style={{ color: M, fontWeight: 600, width: 30 }}>À :</span><span>{form.email}</span></div>
+          <div style={{ display: "flex", gap: 8, marginBottom: 12 }}><span style={{ color: M, fontWeight: 600, width: 30 }}>Obj :</span><span style={{ fontWeight: 600 }}>Confirmation de réception – Demande de rencontre bilatérale</span></div>
+          <div style={{ padding: "14px 16px", background: BG, borderRadius: 8, borderLeft: `3px solid ${G}` }}>
+            <p style={{ margin: "0 0 8px" }}>Madame, Monsieur,</p>
+            <p style={{ margin: "0 0 8px" }}>Nous accusons bonne réception de votre demande de rencontre avec <strong>{form.target === "DGF" ? "la Direction Générale des Financements" : form.target === "Ministre" ? "le Ministre du Budget" : "le Ministre et la DGF"}</strong> dans le cadre des Spring Meetings 2026.</p>
+            <p style={{ margin: "0 0 8px" }}><strong>Sujet :</strong> {form.topic}<br/><strong>Préférences :</strong> {prefLabels.join(" / ") || "—"}</p>
+            <p style={{ margin: "0 0 8px" }}>L'agenda définitif sera communiqué environ 3 semaines avant les assemblées. Vous recevrez une notification dès qu'un créneau vous sera attribué.</p>
+            <p style={{ margin: 0, color: M, fontSize: 11 }}>— Direction Générale des Financements · Ministère du Budget et du Portefeuille de l'État</p>
+          </div>
+        </div>
+      </Card>
+
+      <Card style={{ padding: 0, marginBottom: 20, overflow: "hidden" }}>
+        <div style={{ padding: "12px 18px", background: LO, borderBottom: `1px solid #F5D89A`, display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 14 }}>📧</span>
+          <span style={{ fontSize: 12, fontWeight: 700, color: O }}>Notification interne — DGF</span>
+          <span style={{ marginLeft: "auto", fontSize: 10, color: O, background: "#fff", padding: "2px 8px", borderRadius: 10, fontWeight: 600 }}>Envoyé</span>
+        </div>
+        <div style={{ padding: 18, fontSize: 12, color: D, lineHeight: 1.8 }}>
+          <div style={{ display: "flex", gap: 8, marginBottom: 6 }}><span style={{ color: M, fontWeight: 600, width: 30 }}>À :</span><span>meetings.dgf@tresor.gouv.ci</span></div>
+          <div style={{ display: "flex", gap: 8, marginBottom: 12 }}><span style={{ color: M, fontWeight: 600, width: 30 }}>Obj :</span><span style={{ fontWeight: 600 }}>🔔 Nouvelle demande – {form.partner} – {form.target}</span></div>
+          <div style={{ padding: "14px 16px", background: BG, borderRadius: 8, borderLeft: `3px solid ${O}` }}>
+            <p style={{ margin: "0 0 6px", fontWeight: 700 }}>Nouvelle demande de rencontre bilatérale</p>
+            <table style={{ fontSize: 12, borderCollapse: "collapse" }}>
+              <tbody>
+                {[["Institution", form.partner], ["Contact", `${form.contact} (${form.email})`], ["Interlocuteur", form.target], ["Sujet", form.topic], ["Préférences", prefLabels.join(" / ") || "—"]].map(([k, v]) => (
+                  <tr key={k}><td style={{ padding: "3px 12px 3px 0", color: M, fontWeight: 600, whiteSpace: "nowrap" }}>{k}</td><td style={{ padding: "3px 0" }}>{v}</td></tr>
+                ))}
+              </tbody>
+            </table>
+            <p style={{ margin: "10px 0 0", fontSize: 11, color: M }}>→ Connectez-vous au Portail Meetings pour traiter cette demande.</p>
+          </div>
+        </div>
+      </Card>
+
+      <div style={{ textAlign: "center" }}>
+        <button onClick={() => { setDone(false); setForm(f => ({ ...f, topic: "", details: "" })); setPrefs([{ day: "", period: "" }, { day: "", period: "" }, { day: "", period: "" }]); }} style={{ padding: "10px 28px", background: O, color: "#fff", border: "none", borderRadius: 8, fontWeight: 700, fontSize: 14, cursor: "pointer" }}>Nouvelle demande</button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div>
+      <STitle sub="Soumettez une demande de rencontre bilatérale avec la délégation ivoirienne">Demande de rencontre</STitle>
+      <Card>
+        <BlockTitle>Informations du partenaire</BlockTitle>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 16, marginBottom: 28 }}>
+          <InputField label="Institution" req half value={form.partner} onChange={e => s("partner", e.target.value)} error={errors.partner} />
+          <InputField label="Service / Département" half value={form.org} onChange={e => s("org", e.target.value)} />
+          <InputField label="Nom du contact" req half value={form.contact} onChange={e => s("contact", e.target.value)} error={errors.contact} />
+          <InputField label="E-mail" req half type="email" value={form.email} onChange={e => s("email", e.target.value)} error={errors.email} />
+          <InputField label="Téléphone" half type="tel" value={form.phone} onChange={e => s("phone", e.target.value)} />
+          <InputField label="Interlocuteur souhaité" req half>
+            <select value={form.target} onChange={e => s("target", e.target.value)} style={{ width: "100%", padding: "10px 12px", border: `1px solid ${BD}`, borderRadius: 8, fontSize: 14, background: BG, fontFamily: "inherit", cursor: "pointer" }}>
+              <option value="DGF">Direction Générale des Financements</option>
+              <option value="Ministre">Ministre du Budget</option>
+              <option value="Ministre + DGF">Ministre + DGF</option>
+            </select>
+          </InputField>
+        </div>
+
+        <BlockTitle>Objet de la rencontre</BlockTitle>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 16, marginBottom: 28 }}>
+          <InputField label="Sujet principal" req value={form.topic} onChange={e => s("topic", e.target.value)} error={errors.topic} />
+          <InputField label="Détails / Points à aborder">
+            <textarea value={form.details} onChange={e => s("details", e.target.value)} rows={3} style={{ width: "100%", padding: "10px 12px", border: `1px solid ${BD}`, borderRadius: 8, fontSize: 14, background: BG, fontFamily: "inherit", resize: "vertical", boxSizing: "border-box" }} />
+          </InputField>
+        </div>
+
+        <BlockTitle>Préférences de créneaux</BlockTitle>
+        <div style={{ padding: "12px 16px", background: BG, borderRadius: 8, marginBottom: 16, fontSize: 12, color: M, lineHeight: 1.6 }}>
+          Les assemblées se tiennent du <strong style={{ color: D }}>lundi 13 au vendredi 17 avril 2026</strong>. Sélectionnez vos préférences par ordre de priorité. L'agenda définitif sera confirmé ~3 semaines avant.
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 28 }}>
+          {prefs.map((p, i) => (
+            <PrefSelector key={i} index={i + 1} pref={p} onChange={np => { const n = [...prefs]; n[i] = np; setPrefs(n); setErrors(e => ({ ...e, pref1: undefined })); }} error={i === 0 && errors.pref1} />
+          ))}
+          {errors.pref1 && <div style={{ fontSize: 11, color: "#DC2626", fontWeight: 600 }}>{errors.pref1}</div>}
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "flex-end" }}>
+          <button onClick={handleSubmit} style={{ padding: "12px 40px", background: O, color: "#fff", border: "none", borderRadius: 8, fontWeight: 700, fontSize: 14, cursor: "pointer", boxShadow: "0 2px 12px rgba(236,141,8,0.3)" }}>Soumettre la demande</button>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+// ─── PARTNER: STATUS ───
+
+function PartnerStatus({ user, meetings }) {
+  const mine = meetings.filter(m => m.email === user.email);
+  return (
+    <div>
+      <STitle sub="Suivez l'état de vos demandes">Mes demandes</STitle>
+      {mine.length > 0 ? mine.map(m => (
+        <Card key={m.id} style={{ marginBottom: 12, padding: 18 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: D }}>{m.topic}</div>
+              <div style={{ fontSize: 12, color: M, marginTop: 4 }}>Interlocuteur : {m.target}</div>
+              <div style={{ fontSize: 12, color: M }}>Préférences : {m.prefs?.map(p => prefLabel(p)).join(" / ")}</div>
+            </div>
+            <StatusBadge status={m.status} />
+          </div>
+          <div style={{ marginTop: 14, padding: "10px 14px", background: BG, borderRadius: 8, fontSize: 12, color: M, lineHeight: 1.6 }}>
+            {m.status === "confirmed" && m.slot && (() => { const [d, t] = m.slot.split("|"); const day = DAYS.find(x => x.key === d); return `✅ Rencontre confirmée : ${day?.full || d} à ${t}. Détails logistiques envoyés par e-mail.`; })()}
+            {m.status === "confirmed" && !m.slot && "✅ Rencontre confirmée. Créneau à préciser."}
+            {m.status === "pending" && "⏳ Demande reçue. L'agenda définitif sera communiqué ~3 semaines avant les assemblées."}
+            {m.status === "declined" && "Ce créneau n'est plus disponible. Vous pouvez soumettre une nouvelle demande."}
+          </div>
+        </Card>
+      )) : (
+        <Card style={{ textAlign: "center", padding: 48, color: M }}>
+          <div style={{ fontSize: 32, marginBottom: 12 }}>📭</div>
+          <div style={{ fontSize: 14, fontWeight: 600 }}>Aucune demande pour le moment</div>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+// ─── ADMIN: DASHBOARD ───
+
+function AdminDash({ meetings }) {
+  const co = meetings.filter(m => m.status === "confirmed").length;
+  const pe = meetings.filter(m => m.status === "pending").length;
+  const byT = {}; meetings.forEach(m => { byT[m.target] = (byT[m.target] || 0) + 1; });
+
+  return (
+    <div>
+      <STitle sub="Vue d'ensemble des demandes de rencontres bilatérales">Tableau de bord</STitle>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 24 }}>
+        {[{ l: "Total", v: meetings.length, i: "📋", bg: BG }, { l: "Confirmées", v: co, i: "✅", bg: LG }, { l: "En attente", v: pe, i: "⏳", bg: "#FEF3C7" }, { l: "À placer", v: meetings.filter(m => !m.slot && m.status !== "declined").length, i: "📌", bg: LO }].map((s, i) => (
+          <Card key={i} style={{ textAlign: "center", padding: 18, background: s.bg }}>
+            <div style={{ fontSize: 26, marginBottom: 4 }}>{s.i}</div>
+            <div style={{ fontSize: 28, fontWeight: 800, color: D }}>{s.v}</div>
+            <div style={{ fontSize: 10, color: M, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.6 }}>{s.l}</div>
+          </Card>
+        ))}
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 24 }}>
+        <Card style={{ padding: 18 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: D, marginBottom: 12 }}>Par interlocuteur</div>
+          {Object.entries(byT).map(([k, v]) => (
+            <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: `1px solid ${BD}`, fontSize: 13 }}>
+              <span style={{ color: M }}>{k}</span><span style={{ fontWeight: 700, color: D }}>{v}</span>
+            </div>
+          ))}
+        </Card>
+        <Card style={{ padding: 18 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: D, marginBottom: 12 }}>Par priorité</div>
+          {["high", "medium", "low"].map(p => {
+            const c = meetings.filter(m => m.priority === p).length;
+            return <div key={p} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: `1px solid ${BD}`, fontSize: 13 }}>
+              <PriorityDot p={p} /><span style={{ color: M, flex: 1 }}>{p === "high" ? "Haute" : p === "medium" ? "Moyenne" : "Basse"}</span><span style={{ fontWeight: 700, color: D }}>{c}</span>
+            </div>;
+          })}
+        </Card>
+      </div>
+
+      <Card>
+        <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 14, color: D }}>Toutes les demandes</div>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+          <thead><tr style={{ borderBottom: `2px solid ${BD}` }}>
+            {["", "Partenaire", "Objet", "Cible", "Préférence", "Créneau", "Statut"].map(h => (
+              <th key={h} style={{ textAlign: "left", padding: "8px 6px", color: M, fontWeight: 700, fontSize: 10, textTransform: "uppercase", letterSpacing: 0.5 }}>{h}</th>
+            ))}
+          </tr></thead>
+          <tbody>{meetings.map(m => {
+            const slotLabel = m.slot ? (() => { const [d, t] = m.slot.split("|"); const day = DAYS.find(x => x.key === d); return `${day?.label || d} ${t}`; })() : "—";
+            return (
+              <tr key={m.id} style={{ borderBottom: `1px solid ${BD}` }}>
+                <td style={{ padding: "10px 6px" }}><PriorityDot p={m.priority} /></td>
+                <td style={{ padding: "10px 6px", fontWeight: 600, color: D }}>{m.partner}</td>
+                <td style={{ padding: "10px 6px", color: D, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.topic}</td>
+                <td style={{ padding: "10px 6px" }}><TargetBadge target={m.target} /></td>
+                <td style={{ padding: "10px 6px", color: M, fontSize: 11 }}>{m.prefs?.[0] ? prefLabel(m.prefs[0]) : "—"}</td>
+                <td style={{ padding: "10px 6px", color: m.slot ? G : M, fontWeight: m.slot ? 700 : 400, fontSize: 11 }}>{slotLabel}</td>
+                <td style={{ padding: "10px 6px" }}><StatusBadge status={m.status} small /></td>
+              </tr>
+            );
+          })}</tbody>
+        </table>
+      </Card>
+    </div>
+  );
+}
+
+// ─── ADMIN: PLANNING BOARD (DUAL TRACK) ───
+
+function PlanningBoard({ meetings, setMeetings }) {
+  const [placing, setPlacing] = useState(null);
+  const [trackView, setTrackView] = useState("all"); // all | dgf | ministre
+  const unplaced = meetings.filter(m => !m.slot && m.status !== "declined");
+  const placed = meetings.filter(m => m.slot);
+
+  const getSlotMeeting = (dayKey, hour) => placed.find(m => m.slot === `${dayKey}|${hour}`);
+
+  const assignSlot = (dayKey, hour) => {
+    if (!placing) return;
+    setMeetings(prev => prev.map(m => m.id === placing.id ? { ...m, slot: `${dayKey}|${hour}`, status: "confirmed" } : m));
+    setPlacing(null);
+  };
+
+  const unassign = (id) => {
+    setMeetings(prev => prev.map(m => m.id === id ? { ...m, slot: null, status: "pending" } : m));
+  };
+
+  // Filter placed meetings by track
+  const isVisible = (m) => {
+    if (trackView === "all") return true;
+    if (trackView === "dgf") return m.target === "DGF";
+    return m.target.includes("Ministre");
+  };
+
+  return (
+    <div>
+      <STitle sub="Cliquez sur une demande puis sur un créneau libre pour l'affecter">Planning interactif</STitle>
+
+      {/* TRACK FILTER */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+        {[["all", "Tous"], ["dgf", "DGF uniquement"], ["ministre", "Ministre"]].map(([k, l]) => (
+          <button key={k} onClick={() => setTrackView(k)} style={{
+            padding: "7px 16px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.15s",
+            border: `1px solid ${trackView === k ? O : BD}`,
+            background: trackView === k ? LO : W,
+            color: trackView === k ? O : M,
+          }}>{l}</button>
+        ))}
+      </div>
+
+      {/* UNPLACED */}
+      <Card style={{ marginBottom: 20, padding: 16 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: D, marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ background: unplaced.length > 0 ? "#DC2626" : G, color: "#fff", fontSize: 10, fontWeight: 800, padding: "1px 7px", borderRadius: 10 }}>{unplaced.length}</span>
+          Demandes à placer
+          {placing && <span style={{ marginLeft: "auto", fontSize: 11, color: O, fontWeight: 600, background: LO, padding: "4px 12px", borderRadius: 6 }}>📍 Placez « {placing.partner} » — cliquez sur un créneau vert</span>}
+        </div>
+        {unplaced.length > 0 ? (
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {unplaced.map(m => (
+              <div key={m.id} onClick={() => setPlacing(placing?.id === m.id ? null : m)}
+                style={{
+                  padding: "8px 12px", borderRadius: 8, cursor: "pointer", transition: "all 0.15s", maxWidth: 240,
+                  border: `2px solid ${placing?.id === m.id ? O : BD}`,
+                  background: placing?.id === m.id ? LO : W,
+                  boxShadow: placing?.id === m.id ? `0 0 0 3px ${O}33` : "none",
+                }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
+                  <PriorityDot p={m.priority} />
+                  <span style={{ fontSize: 12, fontWeight: 700, color: D }}>{m.partner}</span>
+                </div>
+                <TargetBadge target={m.target} />
+                <div style={{ fontSize: 10, color: M, marginTop: 4 }}>Préf : {m.prefs?.map(p => prefLabel(p)).join(" / ")}</div>
+                {m.note && <div style={{ fontSize: 10, color: PU, marginTop: 3, fontStyle: "italic" }}>📝 {m.note}</div>}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{ textAlign: "center", padding: 12, color: G, fontSize: 13, fontWeight: 600 }}>✅ Toutes les demandes sont placées</div>
+        )}
+      </Card>
+
+      {/* LEGEND */}
+      <div style={{ display: "flex", gap: 16, marginBottom: 12, fontSize: 11, color: M, flexWrap: "wrap" }}>
+        <span><span style={{ display: "inline-block", width: 12, height: 12, borderRadius: 3, background: LO, border: `1px solid ${O}`, marginRight: 4, verticalAlign: "middle" }} />DGF</span>
+        <span><span style={{ display: "inline-block", width: 12, height: 12, borderRadius: 3, background: LPU, border: `1px solid ${PU}`, marginRight: 4, verticalAlign: "middle" }} />Ministre (+DGF)</span>
+        {placing && <span><span style={{ display: "inline-block", width: 12, height: 12, borderRadius: 3, background: "#DCFCE7", border: `2px dashed ${G}`, marginRight: 4, verticalAlign: "middle" }} />Correspond aux préférences</span>}
+      </div>
+
+      {/* GRID */}
+      <div style={{ overflowX: "auto" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "56px repeat(5, 1fr)", gap: 0, minWidth: 750 }}>
+          <div style={{ padding: 6, borderBottom: `2px solid ${O}` }} />
+          {DAYS.map(d => (
+            <div key={d.key} style={{ padding: "10px 4px", textAlign: "center", fontWeight: 700, fontSize: 11, color: D, background: BG, borderBottom: `2px solid ${O}`, borderRight: `1px solid ${BD}` }}>
+              {d.label}
+            </div>
+          ))}
+
+          {HOURS.map(hour => (
+            <>
+              <div key={`h-${hour}`} style={{ padding: "6px 4px", fontSize: 12, fontWeight: 800, color: M, display: "flex", alignItems: "center", justifyContent: "center", borderBottom: `1px solid ${BD}`, fontVariantNumeric: "tabular-nums", background: hour === "14:00" ? "#f5f3ee" : "transparent" }}>
+                {HOUR_LABELS[hour]}
+              </div>
+              {DAYS.map(day => {
+                const existing = getSlotMeeting(day.key, hour);
+                const visible = existing && isVisible(existing);
+                const hidden = existing && !visible;
+                const isTarget = placing && !existing;
+                const isPref = placing && isTarget && matchesPref(placing, day.key, hour);
+
+                return (
+                  <div key={`${day.key}-${hour}`}
+                    onClick={() => isTarget && assignSlot(day.key, hour)}
+                    style={{
+                      padding: 5, borderBottom: `1px solid ${BD}`, borderRight: `1px solid ${BD}`,
+                      minHeight: 56, cursor: isTarget ? "pointer" : "default",
+                      background: visible
+                        ? (existing.target.includes("Ministre") ? LPU : LO)
+                        : hidden ? "#f9f9f7"
+                        : isPref ? "#DCFCE7"
+                        : isTarget ? `${G}08`
+                        : hour === "14:00" ? "#fdfcfa" : W,
+                      transition: "all 0.15s",
+                      ...(isPref ? { outline: `2px dashed ${G}`, outlineOffset: -2 } : {}),
+                      ...(isTarget && !isPref ? { outline: `1px dashed ${BD}`, outlineOffset: -1 } : {}),
+                    }}>
+                    {visible ? (
+                      <div style={{ position: "relative" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 3, marginBottom: 2 }}>
+                          <PriorityDot p={existing.priority} />
+                          <span style={{ fontSize: 11, fontWeight: 700, color: D, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{existing.partner}</span>
+                        </div>
+                        <div style={{ fontSize: 9, color: M, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 2 }}>{existing.topic}</div>
+                        <TargetBadge target={existing.target} />
+                        <button onClick={(e) => { e.stopPropagation(); unassign(existing.id); }}
+                          style={{ position: "absolute", top: -4, right: -4, width: 18, height: 18, borderRadius: "50%", border: "1px solid #FECACA", background: "#FEE2E2", color: "#991B1B", fontSize: 10, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, padding: 0, lineHeight: 1 }}>×</button>
+                      </div>
+                    ) : hidden ? (
+                      <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: M, opacity: 0.5 }}>Occupé</div>
+                    ) : isTarget ? (
+                      <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: isPref ? G : M, fontWeight: isPref ? 700 : 400 }}>
+                        {isPref ? "★ Préféré" : "+ Placer"}
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── ADMIN: MANAGE LIST ───
+
+function AdminManage({ meetings, setMeetings }) {
+  const [filter, setFilter] = useState("all");
+  const filtered = filter === "all" ? meetings : meetings.filter(m => m.status === filter);
+  const update = (id, s) => setMeetings(prev => prev.map(m => m.id === id ? { ...m, status: s, ...(s === "declined" ? { slot: null } : {}) } : m));
+  const setNote = (id, note) => setMeetings(prev => prev.map(m => m.id === id ? { ...m, note } : m));
+
+  return (
+    <div>
+      <STitle sub="Gérer individuellement chaque demande">Gestion des demandes</STitle>
+      <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
+        {[["all", "Toutes"], ["pending", "En attente"], ["confirmed", "Confirmées"], ["declined", "Déclinées"]].map(([k, l]) => (
+          <button key={k} onClick={() => setFilter(k)} style={{ padding: "8px 16px", border: `1px solid ${filter === k ? G : BD}`, borderRadius: 8, background: filter === k ? LG : W, color: filter === k ? G : M, fontWeight: 600, fontSize: 12, cursor: "pointer" }}>
+            {l} ({k === "all" ? meetings.length : meetings.filter(m => m.status === k).length})
+          </button>
+        ))}
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {filtered.map(m => {
+          const slotLabel = m.slot ? (() => { const [d, t] = m.slot.split("|"); const day = DAYS.find(x => x.key === d); return `${day?.full || d} à ${t}`; })() : null;
+          return (
+            <Card key={m.id} style={{ padding: 18 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
+                    <PriorityDot p={m.priority} />
+                    <span style={{ fontSize: 15, fontWeight: 700, color: D }}>{m.partner}</span>
+                    <span style={{ fontSize: 12, color: M }}>— {m.org}</span>
+                    <TargetBadge target={m.target} />
+                  </div>
+                  <div style={{ fontSize: 13, color: D, marginBottom: 4 }}>{m.topic}</div>
+                  <div style={{ fontSize: 12, color: M }}>{m.contact} · {m.email}</div>
+                  <div style={{ fontSize: 12, color: M }}>Préférences : {m.prefs?.map(p => prefLabel(p)).join(" / ")}</div>
+                  {slotLabel && <div style={{ fontSize: 12, color: G, fontWeight: 700, marginTop: 4 }}>📍 Créneau : {slotLabel}</div>}
+                </div>
+                <StatusBadge status={m.status} />
+              </div>
+
+              {/* NOTES */}
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: M, marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.5 }}>Note interne</div>
+                <input value={m.note || ""} onChange={e => setNote(m.id, e.target.value)} placeholder="Ajouter une note (visible admin uniquement)…"
+                  style={{ width: "100%", padding: "8px 10px", border: `1px solid ${BD}`, borderRadius: 6, fontSize: 12, background: BG, fontFamily: "inherit", boxSizing: "border-box", color: PU, fontStyle: m.note ? "normal" : "italic" }} />
+              </div>
+
+              <div style={{ display: "flex", gap: 8, borderTop: `1px solid ${BD}`, paddingTop: 12 }}>
+                {m.status !== "confirmed" && <button onClick={() => update(m.id, "confirmed")} style={{ padding: "7px 18px", background: G, color: "#fff", border: "none", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Confirmer</button>}
+                {m.status !== "declined" && <button onClick={() => update(m.id, "declined")} style={{ padding: "7px 18px", background: "#fff", color: "#991B1B", border: "1px solid #FECACA", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Décliner</button>}
+                {m.status !== "pending" && <button onClick={() => update(m.id, "pending")} style={{ padding: "7px 18px", background: "#fff", color: M, border: `1px solid ${BD}`, borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>En attente</button>}
+              </div>
+            </Card>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── MAIN ───
+
+function App() {
+  const [user, setUser] = useState(null);
+  const [view, setView] = useState(null);
+  const [meetings, setMeetings] = useState(INIT_MEETINGS);
+
+  const login = (u) => { setUser(u); setView(u.role === "admin" ? "dashboard" : "request"); };
+  const logout = () => { setUser(null); setView(null); };
+
+  if (!user) return <LoginScreen onLogin={login} />;
+
+  const isAdmin = user.role === "admin";
+  const pe = meetings.filter(m => m.status === "pending").length;
+  const unplaced = meetings.filter(m => !m.slot && m.status !== "declined").length;
+
+  const nav = isAdmin
+    ? [{ id: "dashboard", icon: "📊", label: "Tableau de bord" }, { id: "planning", icon: "🗓️", label: "Planning", badge: unplaced }, { id: "manage", icon: "📋", label: "Demandes", badge: pe }]
+    : [{ id: "request", icon: "📝", label: "Nouvelle demande" }, { id: "mystatus", icon: "🔍", label: "Mes demandes" }];
+
+  return (
+    <div style={{ fontFamily: "'Montserrat', 'Segoe UI', sans-serif", background: BG, minHeight: "100vh", display: "flex", color: D }}>
+      <aside style={{ width: 240, background: W, borderRight: `1px solid ${BD}`, display: "flex", flexDirection: "column", position: "sticky", top: 0, height: "100vh", flexShrink: 0 }}>
+        <div style={{ padding: "22px 20px 18px", borderBottom: `1px solid ${BD}` }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 8, flexShrink: 0, background: `linear-gradient(135deg, ${O}, ${G})`, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 900, fontSize: 13 }}>DGF</div>
+            <div><div style={{ fontSize: 13, fontWeight: 800, color: D }}>Portail Meetings</div><div style={{ fontSize: 10, fontWeight: 600, color: G, letterSpacing: 0.5 }}>CÔTE D'IVOIRE</div></div>
+          </div>
+          <div style={{ fontSize: 10, color: M, padding: "6px 10px", background: BG, borderRadius: 6, textAlign: "center", fontWeight: 600 }}>Spring Meetings 2026</div>
+        </div>
+
+        <div style={{ margin: "14px 12px 6px", padding: "10px 14px", borderRadius: 8, background: isAdmin ? LG : LO, border: `1px solid ${isAdmin ? "#A7D5B8" : "#F5D89A"}` }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: isAdmin ? G : O, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 3 }}>{isAdmin ? "Espace Administration" : "Espace Partenaire"}</div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: D, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user.name}</div>
+        </div>
+
+        <nav style={{ padding: "10px 12px", flex: 1, display: "flex", flexDirection: "column", gap: 2 }}>
+          {nav.map(v => <NavItem key={v.id} icon={v.icon} label={v.label} active={view === v.id} onClick={() => setView(v.id)} badge={v.badge} />)}
+        </nav>
+
+        <div style={{ padding: "16px 12px", borderTop: `1px solid ${BD}` }}>
+          <div onClick={logout} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", borderRadius: 8, cursor: "pointer", color: M, fontSize: 13, fontWeight: 600 }}>
+            <span>🚪</span> Déconnexion
+          </div>
+          <div style={{ marginTop: 10, fontSize: 9, color: M, textAlign: "center" }}>Cellule Intelligence Artificielle — DGF</div>
+        </div>
+      </aside>
+
+      <main style={{ flex: 1, padding: 32, maxWidth: 960, overflow: "auto" }}>
+        {isAdmin && view === "dashboard" && <AdminDash meetings={meetings} />}
+        {isAdmin && view === "planning" && <PlanningBoard meetings={meetings} setMeetings={setMeetings} />}
+        {isAdmin && view === "manage" && <AdminManage meetings={meetings} setMeetings={setMeetings} />}
+        {!isAdmin && view === "request" && <PartnerForm user={user} />}
+        {!isAdmin && view === "mystatus" && <PartnerStatus user={user} meetings={meetings} />}
+      </main>
+    </div>
+  );
+}
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(React.createElement(App));
+  </script>
+</body>
+</html>
