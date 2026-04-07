@@ -23,11 +23,12 @@
 <body>
   <div id="root"></div>
   <script type="text/babel">
-    const { useState } = React;
+    const { useState, useEffect } = React;
 
 const O = "#EC8D08", G = "#037B3D", D = "#1a1a1a", BG = "#FAFAF7", W = "#FFFFFF", BD = "#E8E4DD", M = "#8C8575", LO = "#FEF6E6", LG = "#E8F5ED", PU = "#6D28D9", LPU = "#EDE9FE";
 
 const WEBHOOK_URL = "https://hook.eu2.make.com/plxd1fb6ahjyjtai521gg3ctzlb8qohw";
+const WEBHOOK_SLOT_URL = "https://hook.eu2.make.com/77rg7g4v3gzmg19nfasaqp3r0e9aoedu";
 
 const USERS = {
   dgf: { password: "dgf2026", role: "admin", label: "DGF", name: "Direction Générale des Financements" },
@@ -76,6 +77,24 @@ const matchesPref = (meeting, dayKey, hour) => {
     const pr = PREF_PERIODS.find(x => x.value === p.period);
     return d?.dayKey === dayKey && pr?.hours?.includes(hour);
   });
+};
+
+const notifySlot = (action, meeting, slotDay, slotTime) => {
+  const day = DAYS.find(d => d.key === slotDay);
+  fetch(WEBHOOK_SLOT_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      action,
+      partner: meeting.partner,
+      contact: meeting.contact,
+      email: meeting.email,
+      target: meeting.target,
+      topic: meeting.topic,
+      slot_day: day?.full || slotDay,
+      slot_time: slotTime,
+    }),
+  }).catch(err => console.log("Notification slot:", err));
 };
 
 // ─── COMPONENTS ───
@@ -180,7 +199,7 @@ function PrefSelector({ index, pref, onChange, error }) {
 
 // ─── PARTNER: REQUEST FORM ───
 
-function PartnerForm({ user }) {
+function PartnerForm({ user, onSubmit }) {
   const [form, setForm] = useState({ partner: user.name || "", org: "", contact: "", email: user.email || "", phone: "", target: "DGF", topic: "", details: "" });
   const [prefs, setPrefs] = useState([{ day: "", period: "" }, { day: "", period: "" }, { day: "", period: "" }]);
   const [errors, setErrors] = useState({});
@@ -226,6 +245,15 @@ function PartnerForm({ user }) {
       console.log("Webhook fallback (CORS ou offline):", err);
     }
     setSending(false);
+    onSubmit({
+      partner: form.partner,
+      org: form.org,
+      contact: form.contact,
+      email: form.email,
+      target: form.target,
+      topic: form.topic,
+      prefs: prefs.filter(p => p.day && p.period),
+    });
     setDone(true);
   };
 
@@ -410,11 +438,17 @@ function PlanningBoard({ meetings, setMeetings }) {
 
   const assignSlot = (dayKey, hour) => {
     if (!placing) return;
+    notifySlot("confirmed", placing, dayKey, hour);
     setMeetings(prev => prev.map(m => m.id === placing.id ? { ...m, slot: `${dayKey}|${hour}`, status: "confirmed" } : m));
     setPlacing(null);
   };
 
   const unassign = (id) => {
+    const meeting = meetings.find(m => m.id === id);
+    if (meeting && meeting.slot) {
+      const [d, t] = meeting.slot.split("|");
+      notifySlot("cancelled", meeting, d, t);
+    }
     setMeetings(prev => prev.map(m => m.id === id ? { ...m, slot: null, status: "pending" } : m));
   };
 
@@ -611,7 +645,18 @@ function AdminManage({ meetings, setMeetings }) {
 function App() {
   const [user, setUser] = useState(null);
   const [view, setView] = useState(null);
-  const [meetings, setMeetings] = useState(INIT_MEETINGS);
+  const [meetings, setMeetings] = useState(() => {
+    try { const saved = localStorage.getItem("dgf_meetings"); return saved ? JSON.parse(saved) : INIT_MEETINGS; } catch { return INIT_MEETINGS; }
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem("dgf_meetings", JSON.stringify(meetings)); } catch {}
+  }, [meetings]);
+
+  const addMeeting = (m) => {
+    const newMeeting = { ...m, id: Date.now(), status: "pending", priority: "medium", slot: null, note: "" };
+    setMeetings(prev => [...prev, newMeeting]);
+  };
 
   const login = (u) => { setUser(u); setView(u.role === "admin" ? "dashboard" : "request"); };
   const logout = () => { setUser(null); setView(null); };
@@ -658,7 +703,7 @@ function App() {
         {isAdmin && view === "dashboard" && <AdminDash meetings={meetings} />}
         {isAdmin && view === "planning" && <PlanningBoard meetings={meetings} setMeetings={setMeetings} />}
         {isAdmin && view === "manage" && <AdminManage meetings={meetings} setMeetings={setMeetings} />}
-        {!isAdmin && view === "request" && <PartnerForm user={user} />}
+        {!isAdmin && view === "request" && <PartnerForm user={user} onSubmit={addMeeting} />}
         {!isAdmin && view === "mystatus" && <PartnerStatus user={user} meetings={meetings} />}
       </main>
     </div>
