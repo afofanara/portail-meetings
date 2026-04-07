@@ -241,59 +241,12 @@ function PartnerForm({ user }) {
   const prefLabels = prefs.filter(p => p.day && p.period).map(p => prefLabel(p));
 
   if (done) return (
-    <div>
-      <Card style={{ textAlign: "center", padding: 40, marginBottom: 16 }}>
-        <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
-        <div style={{ fontSize: 20, fontWeight: 800, color: D, marginBottom: 6 }}>Demande envoyée avec succès</div>
-        <p style={{ fontSize: 13, color: M, maxWidth: 440, margin: "0 auto", lineHeight: 1.7 }}>Votre demande a été enregistrée. Deux notifications ont été envoyées :</p>
-      </Card>
-
-      <Card style={{ padding: 0, marginBottom: 12, overflow: "hidden" }}>
-        <div style={{ padding: "12px 18px", background: LG, borderBottom: `1px solid #A7D5B8`, display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 14 }}>📧</span>
-          <span style={{ fontSize: 12, fontWeight: 700, color: G }}>Accusé de réception — Partenaire</span>
-          <span style={{ marginLeft: "auto", fontSize: 10, color: G, background: "#fff", padding: "2px 8px", borderRadius: 10, fontWeight: 600 }}>Envoyé</span>
-        </div>
-        <div style={{ padding: 18, fontSize: 12, color: D, lineHeight: 1.8 }}>
-          <div style={{ display: "flex", gap: 8, marginBottom: 6 }}><span style={{ color: M, fontWeight: 600, width: 30 }}>À :</span><span>{form.email}</span></div>
-          <div style={{ display: "flex", gap: 8, marginBottom: 12 }}><span style={{ color: M, fontWeight: 600, width: 30 }}>Obj :</span><span style={{ fontWeight: 600 }}>Confirmation de réception – Demande de rencontre bilatérale</span></div>
-          <div style={{ padding: "14px 16px", background: BG, borderRadius: 8, borderLeft: `3px solid ${G}` }}>
-            <p style={{ margin: "0 0 8px" }}>Madame, Monsieur,</p>
-            <p style={{ margin: "0 0 8px" }}>Nous accusons bonne réception de votre demande de rencontre avec <strong>{form.target === "DGF" ? "la Direction Générale des Financements" : form.target === "Ministre" ? "le Ministre de l'Économie, des Finances et du Budget" : "le Ministre et la DGF"}</strong> dans le cadre des Assemblées Annuelles FMI 2026.</p>
-            <p style={{ margin: "0 0 8px" }}><strong>Sujet :</strong> {form.topic}<br/><strong>Préférences :</strong> {prefLabels.join(" / ") || "—"}</p>
-            <p style={{ margin: "0 0 8px" }}>L'agenda définitif sera communiqué environ 3 semaines avant les assemblées. Vous recevrez une notification dès qu'un créneau vous sera attribué.</p>
-            <p style={{ margin: 0, color: M, fontSize: 11 }}>— Direction Générale des Financements · Ministère de l'Économie, des Finances et du Budget</p>
-          </div>
-        </div>
-      </Card>
-
-      <Card style={{ padding: 0, marginBottom: 20, overflow: "hidden" }}>
-        <div style={{ padding: "12px 18px", background: LO, borderBottom: `1px solid #F5D89A`, display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 14 }}>📧</span>
-          <span style={{ fontSize: 12, fontWeight: 700, color: O }}>Notification interne — DGF</span>
-          <span style={{ marginLeft: "auto", fontSize: 10, color: O, background: "#fff", padding: "2px 8px", borderRadius: 10, fontWeight: 600 }}>Envoyé</span>
-        </div>
-        <div style={{ padding: 18, fontSize: 12, color: D, lineHeight: 1.8 }}>
-          <div style={{ display: "flex", gap: 8, marginBottom: 6 }}><span style={{ color: M, fontWeight: 600, width: 30 }}>À :</span><span>meetings.dgf@tresor.gouv.ci</span></div>
-          <div style={{ display: "flex", gap: 8, marginBottom: 12 }}><span style={{ color: M, fontWeight: 600, width: 30 }}>Obj :</span><span style={{ fontWeight: 600 }}>🔔 Nouvelle demande – {form.partner} – {form.target}</span></div>
-          <div style={{ padding: "14px 16px", background: BG, borderRadius: 8, borderLeft: `3px solid ${O}` }}>
-            <p style={{ margin: "0 0 6px", fontWeight: 700 }}>Nouvelle demande de rencontre bilatérale</p>
-            <table style={{ fontSize: 12, borderCollapse: "collapse" }}>
-              <tbody>
-                {[["Institution", form.partner], ["Contact", `${form.contact} (${form.email})`], ["Interlocuteur", form.target], ["Sujet", form.topic], ["Préférences", prefLabels.join(" / ") || "—"]].map(([k, v]) => (
-                  <tr key={k}><td style={{ padding: "3px 12px 3px 0", color: M, fontWeight: 600, whiteSpace: "nowrap" }}>{k}</td><td style={{ padding: "3px 0" }}>{v}</td></tr>
-                ))}
-              </tbody>
-            </table>
-            <p style={{ margin: "10px 0 0", fontSize: 11, color: M }}>→ Connectez-vous au Portail Meetings pour traiter cette demande.</p>
-          </div>
-        </div>
-      </Card>
-
-      <div style={{ textAlign: "center" }}>
-        <button onClick={() => { setDone(false); setForm(f => ({ ...f, topic: "", details: "" })); setPrefs([{ day: "", period: "" }, { day: "", period: "" }, { day: "", period: "" }]); }} style={{ padding: "10px 28px", background: O, color: "#fff", border: "none", borderRadius: 8, fontWeight: 700, fontSize: 14, cursor: "pointer" }}>Nouvelle demande</button>
-      </div>
-    </div>
+    <Card style={{ textAlign: "center", padding: 60 }}>
+      <div style={{ fontSize: 48, marginBottom: 16 }}>✅</div>
+      <div style={{ fontSize: 20, fontWeight: 800, color: D, marginBottom: 8 }}>Demande envoyée avec succès</div>
+      <p style={{ fontSize: 14, color: M, maxWidth: 440, margin: "0 auto", lineHeight: 1.7 }}>Votre demande de rencontre a été enregistrée. Un accusé de réception vous a été envoyé par e-mail. Vous serez notifié dès qu'un créneau vous sera attribué.</p>
+      <button onClick={() => { setDone(false); setForm(f => ({ ...f, topic: "", details: "" })); setPrefs([{ day: "", period: "" }, { day: "", period: "" }, { day: "", period: "" }]); }} style={{ marginTop: 28, padding: "10px 28px", background: O, color: "#fff", border: "none", borderRadius: 8, fontWeight: 700, fontSize: 14, cursor: "pointer" }}>Nouvelle demande</button>
+    </Card>
   );
 
   return (
