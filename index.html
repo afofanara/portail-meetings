@@ -99,7 +99,7 @@ const notifySlot = (action, meeting, slotDay, slotTime) => {
 // ─── COMPONENTS ───
 
 const StatusBadge = ({ status, small }) => {
-  const c = { pending: { bg: "#FEF3C7", color: "#92400E", l: "En attente" }, confirmed: { bg: LG, color: G, l: "Confirmé" }, declined: { bg: "#FEE2E2", color: "#991B1B", l: "Décliné" } }[status];
+  const c = { pending: { bg: "#FEF3C7", color: "#92400E", l: "En attente" }, placed: { bg: "#DBEAFE", color: "#1E40AF", l: "Placé" }, confirmed: { bg: LG, color: G, l: "Confirmé" }, declined: { bg: "#FEE2E2", color: "#991B1B", l: "Décliné" } }[status] || { bg: "#FEF3C7", color: "#92400E", l: "En attente" };
   return <span style={{ background: c.bg, color: c.color, padding: small ? "2px 7px" : "3px 10px", borderRadius: 20, fontSize: small ? 9 : 11, fontWeight: 600, letterSpacing: 0.3, textTransform: "uppercase", whiteSpace: "nowrap" }}>{c.l}</span>;
 };
 
@@ -344,6 +344,7 @@ function PartnerStatus({ user, meetings }) {
             {m.status === "confirmed" && m.slot && (() => { const [d, t] = m.slot.split("|"); const day = DAYS.find(x => x.key === d); return `✅ Rencontre confirmée : ${day?.full || d} à ${t}. Détails logistiques envoyés par e-mail.`; })()}
             {m.status === "confirmed" && !m.slot && "✅ Rencontre confirmée. Créneau à préciser."}
             {m.status === "pending" && "⏳ Demande reçue. L'agenda définitif sera communiqué ~3 semaines avant les assemblées."}
+            {m.status === "placed" && "⏳ Demande reçue. L'agenda définitif sera communiqué ~3 semaines avant les assemblées."}
             {m.status === "declined" && "Ce créneau n'est plus disponible. Vous pouvez soumettre une nouvelle demande."}
           </div>
         </Card>
@@ -361,6 +362,7 @@ function PartnerStatus({ user, meetings }) {
 
 function AdminDash({ meetings }) {
   const co = meetings.filter(m => m.status === "confirmed").length;
+  const pl = meetings.filter(m => m.status === "placed").length;
   const pe = meetings.filter(m => m.status === "pending").length;
   const byT = {}; meetings.forEach(m => { byT[m.target] = (byT[m.target] || 0) + 1; });
 
@@ -368,7 +370,7 @@ function AdminDash({ meetings }) {
     <div>
       <STitle sub="Vue d'ensemble des demandes de rencontres bilatérales">Tableau de bord</STitle>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 24 }}>
-        {[{ l: "Total", v: meetings.length, i: "📋", bg: BG }, { l: "Confirmées", v: co, i: "✅", bg: LG }, { l: "En attente", v: pe, i: "⏳", bg: "#FEF3C7" }, { l: "À placer", v: meetings.filter(m => !m.slot && m.status !== "declined").length, i: "📌", bg: LO }].map((s, i) => (
+        {[{ l: "Total", v: meetings.length, i: "📋", bg: BG }, { l: "Confirmées", v: co, i: "✅", bg: LG }, { l: "Placées", v: pl, i: "📍", bg: "#DBEAFE" }, { l: "À placer", v: pe, i: "⏳", bg: "#FEF3C7" }].map((s, i) => (
           <Card key={i} style={{ textAlign: "center", padding: 18, background: s.bg }}>
             <div style={{ fontSize: 26, marginBottom: 4 }}>{s.i}</div>
             <div style={{ fontSize: 28, fontWeight: 800, color: D }}>{s.v}</div>
@@ -437,14 +439,13 @@ function PlanningBoard({ meetings, setMeetings }) {
 
   const assignSlot = (dayKey, hour) => {
     if (!placing) return;
-    notifySlot("confirmed", placing, dayKey, hour);
-    setMeetings(prev => prev.map(m => m.id === placing.id ? { ...m, slot: `${dayKey}|${hour}`, status: "confirmed" } : m));
+    setMeetings(prev => prev.map(m => m.id === placing.id ? { ...m, slot: `${dayKey}|${hour}`, status: "placed" } : m));
     setPlacing(null);
   };
 
   const unassign = (id) => {
     const meeting = meetings.find(m => m.id === id);
-    if (meeting && meeting.slot) {
+    if (meeting && meeting.slot && meeting.status === "confirmed") {
       const [d, t] = meeting.slot.split("|");
       notifySlot("cancelled", meeting, d, t);
     }
@@ -454,7 +455,7 @@ function PlanningBoard({ meetings, setMeetings }) {
   // Filter placed meetings by track
   const isVisible = (m) => {
     if (trackView === "all") return true;
-    if (trackView === "dgf") return m.target === "DGF";
+    if (trackView === "dgf") return m.target.includes("DGF");
     return m.target.includes("Ministre");
   };
 
@@ -464,7 +465,7 @@ function PlanningBoard({ meetings, setMeetings }) {
 
       {/* TRACK FILTER */}
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-        {[["all", "Tous"], ["dgf", "DGF uniquement"], ["ministre", "Ministre"]].map(([k, l]) => (
+        {[["all", "Tous"], ["dgf", "DGF"], ["ministre", "Ministre"]].map(([k, l]) => (
           <button key={k} onClick={() => setTrackView(k)} style={{
             padding: "7px 16px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.15s",
             border: `1px solid ${trackView === k ? O : BD}`,
@@ -558,7 +559,10 @@ function PlanningBoard({ meetings, setMeetings }) {
                           <span style={{ fontSize: 11, fontWeight: 700, color: D, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{existing.partner}</span>
                         </div>
                         <div style={{ fontSize: 9, color: M, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 2 }}>{existing.topic}</div>
-                        <TargetBadge target={existing.target} />
+                        <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 3 }}>
+                          <TargetBadge target={existing.target} />
+                          {existing.status === "confirmed" && <span style={{ fontSize: 8, color: G, fontWeight: 700 }}>✅</span>}
+                        </div>
                         <button onClick={(e) => { e.stopPropagation(); unassign(existing.id); }}
                           style={{ position: "absolute", top: -4, right: -4, width: 18, height: 18, borderRadius: "50%", border: "1px solid #FECACA", background: "#FEE2E2", color: "#991B1B", fontSize: 10, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, padding: 0, lineHeight: 1 }}>×</button>
                       </div>
@@ -585,14 +589,36 @@ function PlanningBoard({ meetings, setMeetings }) {
 function AdminManage({ meetings, setMeetings }) {
   const [filter, setFilter] = useState("all");
   const filtered = filter === "all" ? meetings : meetings.filter(m => m.status === filter);
-  const update = (id, s) => setMeetings(prev => prev.map(m => m.id === id ? { ...m, status: s, ...(s === "declined" ? { slot: null } : {}) } : m));
+
+  const confirm = (id) => {
+    const m = meetings.find(x => x.id === id);
+    if (m && m.slot) {
+      const [d, t] = m.slot.split("|");
+      notifySlot("confirmed", m, d, t);
+    }
+    setMeetings(prev => prev.map(x => x.id === id ? { ...x, status: "confirmed" } : x));
+  };
+
+  const decline = (id) => {
+    const m = meetings.find(x => x.id === id);
+    if (m && m.slot && m.status === "confirmed") {
+      const [d, t] = m.slot.split("|");
+      notifySlot("cancelled", m, d, t);
+    }
+    setMeetings(prev => prev.map(x => x.id === id ? { ...x, status: "declined", slot: null } : x));
+  };
+
+  const reset = (id) => {
+    setMeetings(prev => prev.map(x => x.id === id ? { ...x, status: x.slot ? "placed" : "pending" } : x));
+  };
+
   const setNote = (id, note) => setMeetings(prev => prev.map(m => m.id === id ? { ...m, note } : m));
 
   return (
     <div>
-      <STitle sub="Gérer individuellement chaque demande">Gestion des demandes</STitle>
+      <STitle sub="Gérer individuellement chaque demande — la confirmation envoie un e-mail au partenaire">Gestion des demandes</STitle>
       <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
-        {[["all", "Toutes"], ["pending", "En attente"], ["confirmed", "Confirmées"], ["declined", "Déclinées"]].map(([k, l]) => (
+        {[["all", "Toutes"], ["pending", "En attente"], ["placed", "Placées"], ["confirmed", "Confirmées"], ["declined", "Déclinées"]].map(([k, l]) => (
           <button key={k} onClick={() => setFilter(k)} style={{ padding: "8px 16px", border: `1px solid ${filter === k ? G : BD}`, borderRadius: 8, background: filter === k ? LG : W, color: filter === k ? G : M, fontWeight: 600, fontSize: 12, cursor: "pointer" }}>
             {l} ({k === "all" ? meetings.length : meetings.filter(m => m.status === k).length})
           </button>
@@ -614,7 +640,7 @@ function AdminManage({ meetings, setMeetings }) {
                   <div style={{ fontSize: 13, color: D, marginBottom: 4 }}>{m.topic}</div>
                   <div style={{ fontSize: 12, color: M }}>{m.contact} · {m.email}</div>
                   <div style={{ fontSize: 12, color: M }}>Préférences : {m.prefs?.map(p => prefLabel(p)).join(" / ")}</div>
-                  {slotLabel && <div style={{ fontSize: 12, color: G, fontWeight: 700, marginTop: 4 }}>📍 Créneau : {slotLabel}</div>}
+                  {slotLabel && <div style={{ fontSize: 12, color: m.status === "confirmed" ? G : "#1E40AF", fontWeight: 700, marginTop: 4 }}>📍 Créneau : {slotLabel}{m.status === "placed" ? " (en attente de confirmation)" : ""}</div>}
                 </div>
                 <StatusBadge status={m.status} />
               </div>
@@ -626,10 +652,21 @@ function AdminManage({ meetings, setMeetings }) {
                   style={{ width: "100%", padding: "8px 10px", border: `1px solid ${BD}`, borderRadius: 6, fontSize: 12, background: BG, fontFamily: "inherit", boxSizing: "border-box", color: PU, fontStyle: m.note ? "normal" : "italic" }} />
               </div>
 
-              <div style={{ display: "flex", gap: 8, borderTop: `1px solid ${BD}`, paddingTop: 12 }}>
-                {m.status !== "confirmed" && <button onClick={() => update(m.id, "confirmed")} style={{ padding: "7px 18px", background: G, color: "#fff", border: "none", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Confirmer</button>}
-                {m.status !== "declined" && <button onClick={() => update(m.id, "declined")} style={{ padding: "7px 18px", background: "#fff", color: "#991B1B", border: "1px solid #FECACA", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Décliner</button>}
-                {m.status !== "pending" && <button onClick={() => update(m.id, "pending")} style={{ padding: "7px 18px", background: "#fff", color: M, border: `1px solid ${BD}`, borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>En attente</button>}
+              <div style={{ display: "flex", gap: 8, borderTop: `1px solid ${BD}`, paddingTop: 12, alignItems: "center" }}>
+                {(m.status === "placed" || m.status === "pending") && m.slot && (
+                  <button onClick={() => confirm(m.id)} style={{ padding: "7px 18px", background: G, color: "#fff", border: "none", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>✅ Confirmer & notifier</button>
+                )}
+                {m.status === "placed" && !m.slot && (
+                  <span style={{ fontSize: 11, color: M, fontStyle: "italic" }}>Placez d'abord un créneau dans le planning avant de confirmer</span>
+                )}
+                {m.status === "pending" && !m.slot && (
+                  <span style={{ fontSize: 11, color: M, fontStyle: "italic" }}>Placez d'abord un créneau dans le planning</span>
+                )}
+                {m.status === "confirmed" && (
+                  <span style={{ fontSize: 11, color: G, fontWeight: 600 }}>✅ Confirmé — partenaire notifié</span>
+                )}
+                {m.status !== "declined" && <button onClick={() => decline(m.id)} style={{ padding: "7px 18px", background: "#fff", color: "#991B1B", border: "1px solid #FECACA", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer", marginLeft: "auto" }}>Décliner</button>}
+                {(m.status === "confirmed" || m.status === "declined") && <button onClick={() => reset(m.id)} style={{ padding: "7px 18px", background: "#fff", color: M, border: `1px solid ${BD}`, borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Réinitialiser</button>}
               </div>
             </Card>
           );
@@ -663,11 +700,11 @@ function App() {
   if (!user) return <LoginScreen onLogin={login} />;
 
   const isAdmin = user.role === "admin";
-  const pe = meetings.filter(m => m.status === "pending").length;
-  const unplaced = meetings.filter(m => !m.slot && m.status !== "declined").length;
+  const toPlace = meetings.filter(m => m.status === "pending").length;
+  const toConfirm = meetings.filter(m => m.status === "placed").length;
 
   const nav = isAdmin
-    ? [{ id: "dashboard", icon: "📊", label: "Tableau de bord" }, { id: "planning", icon: "🗓️", label: "Planning", badge: unplaced }, { id: "manage", icon: "📋", label: "Demandes", badge: pe }]
+    ? [{ id: "dashboard", icon: "📊", label: "Tableau de bord" }, { id: "planning", icon: "🗓️", label: "Planning", badge: toPlace }, { id: "manage", icon: "📋", label: "Demandes", badge: toConfirm }]
     : [{ id: "request", icon: "📝", label: "Nouvelle demande" }, { id: "mystatus", icon: "🔍", label: "Mes demandes" }];
 
   return (
