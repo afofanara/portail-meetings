@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Portail Meetings DGF – Assemblées Annuelles FMI 2026</title>
+  <title>Portail Rencontres Investisseurs – DGF Côte d'Ivoire</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%23EC8D08'/><text x='16' y='22' text-anchor='middle' fill='white' font-family='Arial' font-weight='900' font-size='14'>DGF</text></svg>">
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
@@ -27,34 +27,79 @@
 
 const O = "#EC8D08", G = "#037B3D", D = "#1a1a1a", BG = "#FAFAF7", W = "#FFFFFF", BD = "#E8E4DD", M = "#8C8575", LO = "#FEF6E6", LG = "#E8F5ED", PU = "#6D28D9", LPU = "#EDE9FE";
 
-const WEBHOOK_URL = "https://hook.eu2.make.com/plxd1fb6ahjyjtai521gg3ctzlb8qohw";
-const WEBHOOK_SLOT_URL = "https://hook.eu2.make.com/77rg7g4v3gzmg19nfasaqp3r0e9aoedu";
+// ══════════════════════════════════════════════════════════════════
+//  WEBHOOKS n8n  (instance astou-labs)
+//  → Pour changer d'automatisation, remplacer ces deux URLs uniquement.
+// ══════════════════════════════════════════════════════════════════
+const WEBHOOK_URL = "https://astou-labs.app.n8n.cloud/webhook/demande-rdv";
+const WEBHOOK_SLOT_URL = "https://astou-labs.app.n8n.cloud/webhook/placement-creneau";
 
-const USERS = {
-  mefb: { password: "mefb2026", role: "admin", label: "MEFB", name: "MEFB – Direction Générale des Financements" },
-  jpmorgan: { password: "partner", role: "partner", label: "JP Morgan", name: "JP Morgan – DCM", email: "s.chen@jpmorgan.com" },
-  worldbank: { password: "partner", role: "partner", label: "World Bank", name: "World Bank – IDA", email: "m.dupont@worldbank.org" },
-  demo: { password: "demo", role: "partner", label: "Démo", name: "Partenaire (démo)", email: "demo@partner.com" },
+// ══════════════════════════════════════════════════════════════════
+//  CONFIGURATION DE L'ÉVÉNEMENT
+//  ┌────────────────────────────────────────────────────────────┐
+//  │  POUR CHANGER D'ÉVÉNEMENT CHAQUE ANNÉE :                    │
+//  │  Modifiez UNIQUEMENT le bloc EVENEMENT ci-dessous.         │
+//  │  - nom   : intitulé affiché                                │
+//  │  - ville : lieu de l'événement                             │
+//  │  - debut / fin : dates au format "AAAA-MM-JJ"             │
+//  │  Les jours du calendrier sont générés automatiquement.    │
+//  └────────────────────────────────────────────────────────────┘
+// ══════════════════════════════════════════════════════════════════
+const EVENEMENT = {
+  nom: "Assemblées Annuelles FMI / Banque mondiale",
+  annee: 2026,
+  ville: "Bangkok",
+  debut: "2026-10-12",   // Lundi 12 octobre 2026
+  fin: "2026-10-18",     // Dimanche 18 octobre 2026
 };
 
-const DAYS = [
-  { key: "2026-04-13", label: "Lun. 13", full: "Lundi 13 avril" },
-  { key: "2026-04-14", label: "Mar. 14", full: "Mardi 14 avril" },
-  { key: "2026-04-15", label: "Mer. 15", full: "Mercredi 15 avril" },
-  { key: "2026-04-16", label: "Jeu. 16", full: "Jeudi 16 avril" },
-  { key: "2026-04-17", label: "Ven. 17", full: "Vendredi 17 avril" },
-];
+// ── Génération automatique des jours à partir de EVENEMENT ──
+const MOIS_FR = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
+const JOURS_FR = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
+const JOURS_FR_COURT = ["Dim.", "Lun.", "Mar.", "Mer.", "Jeu.", "Ven.", "Sam."];
+
+const buildDays = () => {
+  const days = [];
+  const start = new Date(EVENEMENT.debut + "T00:00:00");
+  const end = new Date(EVENEMENT.fin + "T00:00:00");
+  for (let dt = new Date(start); dt <= end; dt.setDate(dt.getDate() + 1)) {
+    const y = dt.getFullYear(), m = String(dt.getMonth() + 1).padStart(2, "0"), d = String(dt.getDate()).padStart(2, "0");
+    const key = `${y}-${m}-${d}`;
+    const dow = dt.getDay(), dayNum = dt.getDate();
+    days.push({
+      key,
+      label: `${JOURS_FR_COURT[dow]} ${dayNum}`,
+      full: `${JOURS_FR[dow]} ${dayNum} ${MOIS_FR[dt.getMonth()]}`,
+      short: `${JOURS_FR[dow]} ${dayNum}`,
+    });
+  }
+  return days;
+};
+
+const DAYS = buildDays();
+
+// Libellé lisible de la période de l'événement (ex : "12 au 18 octobre 2026")
+const EVENT_PERIOD_LABEL = (() => {
+  const s = new Date(EVENEMENT.debut + "T00:00:00"), e = new Date(EVENEMENT.fin + "T00:00:00");
+  const sameMonth = s.getMonth() === e.getMonth();
+  return sameMonth
+    ? `${s.getDate()} au ${e.getDate()} ${MOIS_FR[e.getMonth()]} ${e.getFullYear()}`
+    : `${s.getDate()} ${MOIS_FR[s.getMonth()]} au ${e.getDate()} ${MOIS_FR[e.getMonth()]} ${e.getFullYear()}`;
+})();
+
+const EVENT_TITLE = `${EVENEMENT.nom} ${EVENEMENT.annee}`;
+const EVENT_SUBTITLE = `${EVENEMENT.ville} — ${EVENT_PERIOD_LABEL}`;
+
+// ── Compte administrateur (seul accès protégé) ──
+const USERS = {
+  dgf: { password: "dgf2026", role: "admin", label: "DGF", name: "DGF – Direction Générale des Financements" },
+};
 
 const HOURS = ["08:00", "09:00", "10:00", "11:00", "14:00", "15:00", "16:00"];
 const HOUR_LABELS = { "08:00": "8h", "09:00": "9h", "10:00": "10h", "11:00": "11h", "14:00": "14h", "15:00": "15h", "16:00": "16h" };
 
-const PREF_DAYS = [
-  { value: "lun13", label: "Lundi 13", dayKey: "2026-04-13" },
-  { value: "mar14", label: "Mardi 14", dayKey: "2026-04-14" },
-  { value: "mer15", label: "Mercredi 15", dayKey: "2026-04-15" },
-  { value: "jeu16", label: "Jeudi 16", dayKey: "2026-04-16" },
-  { value: "ven17", label: "Vendredi 17", dayKey: "2026-04-17" },
-];
+// Préférences de jours générées depuis DAYS
+const PREF_DAYS = DAYS.map(d => ({ value: d.key, label: d.short, dayKey: d.key }));
 const PREF_PERIODS = [
   { value: "matin", label: "Matin (8h–12h)", hours: ["08:00", "09:00", "10:00", "11:00"] },
   { value: "aprem", label: "Après-midi (14h–17h)", hours: ["14:00", "15:00", "16:00"] },
@@ -99,7 +144,7 @@ const notifySlot = (action, meeting, slotDay, slotTime) => {
 // ─── COMPONENTS ───
 
 const StatusBadge = ({ status, small }) => {
-  const c = { pending: { bg: "#FEF3C7", color: "#92400E", l: "En attente" }, placed: { bg: "#DBEAFE", color: "#1E40AF", l: "Placé" }, confirmed: { bg: LG, color: G, l: "Confirmé" }, declined: { bg: "#FEE2E2", color: "#991B1B", l: "Décliné" } }[status] || { bg: "#FEF3C7", color: "#92400E", l: "En attente" };
+  const c = { pending: { bg: "#FEF3C7", color: "#92400E", l: "En attente" }, placed: { bg: "#DBEAFE", color: "#1E40AF", l: "Placé" }, confirmed: { bg: LG, color: G, l: "Confirmé" }, rescheduled: { bg: "#FED7AA", color: "#9A3412", l: "Modifié" }, declined: { bg: "#FEE2E2", color: "#991B1B", l: "Décliné" } }[status] || { bg: "#FEF3C7", color: "#92400E", l: "En attente" };
   return <span style={{ background: c.bg, color: c.color, padding: small ? "2px 7px" : "3px 10px", borderRadius: 20, fontSize: small ? 9 : 11, fontWeight: 600, letterSpacing: 0.3, textTransform: "uppercase", whiteSpace: "nowrap" }}>{c.l}</span>;
 };
 
@@ -138,24 +183,23 @@ const Sel = ({ value, onChange, options, placeholder, error }) => (
 
 // ─── LOGIN ───
 
-function LoginScreen({ onLogin }) {
-  const [u, setU] = useState(""); const [p, setP] = useState(""); const [err, setErr] = useState(""); const [hov, setHov] = useState(null);
+function LoginScreen({ onLogin, onBack }) {
+  const [u, setU] = useState(""); const [p, setP] = useState(""); const [err, setErr] = useState("");
   const go = () => { const user = USERS[u.toLowerCase().trim()]; if (user && user.password === p) onLogin({ ...user, id: u.toLowerCase().trim() }); else setErr("Identifiants incorrects"); };
-  const quick = (id) => onLogin({ ...USERS[id], id });
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: `linear-gradient(145deg, ${D} 0%, #2a2a2a 50%, #1a1a1a 100%)`, fontFamily: "'Montserrat', 'Segoe UI', sans-serif" }}>
       <div style={{ width: 420, padding: 40 }}>
         <div style={{ textAlign: "center", marginBottom: 40 }}>
           <div style={{ width: 64, height: 64, borderRadius: 16, margin: "0 auto 16px", background: `linear-gradient(135deg, ${O}, ${G})`, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 900, fontSize: 22, boxShadow: "0 8px 32px rgba(236,141,8,0.3)" }}>DGF</div>
-          <h1 style={{ color: "#fff", fontSize: 22, fontWeight: 800, margin: "0 0 6px" }}>Portail Meetings</h1>
-          <div style={{ color: G, fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase" }}>République de Côte d'Ivoire</div>
-          <div style={{ color: M, fontSize: 12, marginTop: 10 }}>Assemblées Annuelles FMI 2026 — Washington D.C.</div>
+          <h1 style={{ color: "#fff", fontSize: 22, fontWeight: 800, margin: "0 0 6px" }}>Espace Administration</h1>
+          <div style={{ color: G, fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase" }}>Direction Générale des Financements</div>
+          <div style={{ color: M, fontSize: 12, marginTop: 10 }}>Réservé au service Relations Investisseurs</div>
         </div>
         <div style={{ background: W, borderRadius: 16, padding: 32, boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
           <div style={{ marginBottom: 20 }}>
             <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: M, marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.6 }}>Identifiant</label>
-            <input value={u} onChange={e => { setU(e.target.value); setErr(""); }} onKeyDown={e => e.key === "Enter" && go()} placeholder="ex : mefb, demo" style={{ width: "100%", padding: "12px 14px", border: `1px solid ${BD}`, borderRadius: 10, fontSize: 14, outline: "none", background: BG, boxSizing: "border-box", fontFamily: "inherit" }} />
+            <input value={u} onChange={e => { setU(e.target.value); setErr(""); }} onKeyDown={e => e.key === "Enter" && go()} placeholder="Identifiant administrateur" style={{ width: "100%", padding: "12px 14px", border: `1px solid ${BD}`, borderRadius: 10, fontSize: 14, outline: "none", background: BG, boxSizing: "border-box", fontFamily: "inherit" }} />
           </div>
           <div style={{ marginBottom: 24 }}>
             <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: M, marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.6 }}>Mot de passe</label>
@@ -164,13 +208,8 @@ function LoginScreen({ onLogin }) {
           {err && <div style={{ color: "#DC2626", fontSize: 12, fontWeight: 600, marginBottom: 14, textAlign: "center" }}>{err}</div>}
           <button onClick={go} style={{ width: "100%", padding: 13, background: O, color: "#fff", border: "none", borderRadius: 10, fontWeight: 800, fontSize: 14, cursor: "pointer", boxShadow: "0 4px 16px rgba(236,141,8,0.35)" }}>Se connecter</button>
         </div>
-        <div style={{ marginTop: 28, textAlign: "center" }}>
-          <div style={{ fontSize: 11, color: M, marginBottom: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1 }}>Accès rapide (démo)</div>
-          <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
-            {[{ id: "mefb", l: "MEFB", c: G }, { id: "demo", l: "Partenaire", c: O }].map(b => (
-              <button key={b.id} onMouseEnter={() => setHov(b.id)} onMouseLeave={() => setHov(null)} onClick={() => quick(b.id)} style={{ padding: "8px 18px", borderRadius: 8, border: `1px solid ${hov === b.id ? b.c : "rgba(255,255,255,0.15)"}`, background: hov === b.id ? `${b.c}22` : "rgba(255,255,255,0.06)", color: hov === b.id ? b.c : "rgba(255,255,255,0.6)", fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}>{b.l}</button>
-            ))}
-          </div>
+        <div style={{ marginTop: 24, textAlign: "center" }}>
+          <button onClick={onBack} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.55)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>← Retour au portail public</button>
         </div>
       </div>
     </div>
@@ -198,8 +237,8 @@ function PrefSelector({ index, pref, onChange, error }) {
 
 // ─── PARTNER: REQUEST FORM ───
 
-function PartnerForm({ user, onSubmit }) {
-  const [form, setForm] = useState({ partner: user.name || "", org: "", contact: "", email: user.email || "", phone: "", target: "DGF", topic: "", details: "" });
+function PartnerForm({ onSubmit }) {
+  const [form, setForm] = useState({ partner: "", org: "", contact: "", email: "", phone: "", target: "DGF", topic: "", details: "" });
   const [prefs, setPrefs] = useState([{ day: "", period: "" }, { day: "", period: "" }, { day: "", period: "" }]);
   const [errors, setErrors] = useState({});
   const [done, setDone] = useState(false);
@@ -306,7 +345,7 @@ function PartnerForm({ user, onSubmit }) {
 
         <BlockTitle>Préférences de créneaux</BlockTitle>
         <div style={{ padding: "12px 16px", background: BG, borderRadius: 8, marginBottom: 16, fontSize: 12, color: M, lineHeight: 1.6 }}>
-          Les assemblées se tiennent du <strong style={{ color: D }}>lundi 13 au vendredi 17 avril 2026</strong>. Sélectionnez vos préférences par ordre de priorité. L'agenda définitif sera confirmé ~3 semaines avant.
+          Les assemblées se tiennent à <strong style={{ color: D }}>{EVENEMENT.ville}, du {EVENT_PERIOD_LABEL}</strong>. Sélectionnez vos préférences par ordre de priorité. L'agenda définitif sera confirmé ~3 semaines avant.
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 28 }}>
           {prefs.map((p, i) => (
@@ -319,41 +358,6 @@ function PartnerForm({ user, onSubmit }) {
           <button onClick={handleSubmit} style={{ padding: "12px 40px", background: O, color: "#fff", border: "none", borderRadius: 8, fontWeight: 700, fontSize: 14, cursor: "pointer", boxShadow: "0 2px 12px rgba(236,141,8,0.3)" }}>Soumettre la demande</button>
         </div>
       </Card>
-    </div>
-  );
-}
-
-// ─── PARTNER: STATUS ───
-
-function PartnerStatus({ user, meetings }) {
-  const mine = meetings.filter(m => m.userId === user.id || m.email === user.email);
-  return (
-    <div>
-      <STitle sub="Suivez l'état de vos demandes">Mes demandes</STitle>
-      {mine.length > 0 ? mine.map(m => (
-        <Card key={m.id} style={{ marginBottom: 12, padding: 18 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-            <div>
-              <div style={{ fontSize: 15, fontWeight: 700, color: D }}>{m.topic}</div>
-              <div style={{ fontSize: 12, color: M, marginTop: 4 }}>Interlocuteur : {m.target}</div>
-              <div style={{ fontSize: 12, color: M }}>Préférences : {m.prefs?.map(p => prefLabel(p)).join(" / ")}</div>
-            </div>
-            <StatusBadge status={m.status} />
-          </div>
-          <div style={{ marginTop: 14, padding: "10px 14px", background: BG, borderRadius: 8, fontSize: 12, color: M, lineHeight: 1.6 }}>
-            {m.status === "confirmed" && m.slot && (() => { const [d, t] = m.slot.split("|"); const day = DAYS.find(x => x.key === d); return `✅ Rencontre confirmée : ${day?.full || d} à ${t}. Détails logistiques envoyés par e-mail.`; })()}
-            {m.status === "confirmed" && !m.slot && "✅ Rencontre confirmée. Créneau à préciser."}
-            {m.status === "pending" && "⏳ Demande reçue. L'agenda définitif sera communiqué ~3 semaines avant les assemblées."}
-            {m.status === "placed" && "⏳ Demande reçue. L'agenda définitif sera communiqué ~3 semaines avant les assemblées."}
-            {m.status === "declined" && "Ce créneau n'est plus disponible. Vous pouvez soumettre une nouvelle demande."}
-          </div>
-        </Card>
-      )) : (
-        <Card style={{ textAlign: "center", padding: 48, color: M }}>
-          <div style={{ fontSize: 32, marginBottom: 12 }}>📭</div>
-          <div style={{ fontSize: 14, fontWeight: 600 }}>Aucune demande pour le moment</div>
-        </Card>
-      )}
     </div>
   );
 }
@@ -439,13 +443,20 @@ function PlanningBoard({ meetings, setMeetings }) {
 
   const assignSlot = (dayKey, hour) => {
     if (!placing) return;
-    setMeetings(prev => prev.map(m => m.id === placing.id ? { ...m, slot: `${dayKey}|${hour}`, status: "placed" } : m));
+    const wasConfirmed = placing.status === "confirmed" || placing.status === "rescheduled";
+    // Si on déplace un RDV déjà confirmé → statut "rescheduled" + notification au partenaire
+    if (wasConfirmed) {
+      notifySlot("reschedule", placing, dayKey, hour);
+      setMeetings(prev => prev.map(m => m.id === placing.id ? { ...m, slot: `${dayKey}|${hour}`, status: "rescheduled" } : m));
+    } else {
+      setMeetings(prev => prev.map(m => m.id === placing.id ? { ...m, slot: `${dayKey}|${hour}`, status: "placed" } : m));
+    }
     setPlacing(null);
   };
 
   const unassign = (id) => {
     const meeting = meetings.find(m => m.id === id);
-    if (meeting && meeting.slot && meeting.status === "confirmed") {
+    if (meeting && meeting.slot && (meeting.status === "confirmed" || meeting.status === "rescheduled")) {
       const [d, t] = meeting.slot.split("|");
       notifySlot("cancelled", meeting, d, t);
     }
@@ -480,7 +491,7 @@ function PlanningBoard({ meetings, setMeetings }) {
         <div style={{ fontSize: 12, fontWeight: 700, color: D, marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ background: unplaced.length > 0 ? "#DC2626" : G, color: "#fff", fontSize: 10, fontWeight: 800, padding: "1px 7px", borderRadius: 10 }}>{unplaced.length}</span>
           Demandes à placer
-          {placing && <span style={{ marginLeft: "auto", fontSize: 11, color: O, fontWeight: 600, background: LO, padding: "4px 12px", borderRadius: 6 }}>📍 Placez « {placing.partner} » — cliquez sur un créneau vert</span>}
+          {placing && <span style={{ marginLeft: "auto", fontSize: 11, color: O, fontWeight: 600, background: LO, padding: "4px 12px", borderRadius: 6 }}>📍 {(placing.status === "confirmed" || placing.status === "rescheduled") ? "Déplacez" : "Placez"} « {placing.partner} » — cliquez sur un créneau libre</span>}
         </div>
         {unplaced.length > 0 ? (
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -562,9 +573,14 @@ function PlanningBoard({ meetings, setMeetings }) {
                         <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 3 }}>
                           <TargetBadge target={existing.target} />
                           {existing.status === "confirmed" && <span style={{ fontSize: 8, color: G, fontWeight: 700 }}>✅</span>}
+                          {existing.status === "rescheduled" && <span style={{ fontSize: 8, color: "#9A3412", fontWeight: 700 }}>↻</span>}
                         </div>
-                        <button onClick={(e) => { e.stopPropagation(); unassign(existing.id); }}
-                          style={{ position: "absolute", top: -4, right: -4, width: 18, height: 18, borderRadius: "50%", border: "1px solid #FECACA", background: "#FEE2E2", color: "#991B1B", fontSize: 10, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, padding: 0, lineHeight: 1 }}>×</button>
+                        <div style={{ position: "absolute", top: -6, right: -6, display: "flex", gap: 3 }}>
+                          <button title="Déplacer ce créneau" onClick={(e) => { e.stopPropagation(); setPlacing(placing?.id === existing.id ? null : existing); }}
+                            style={{ width: 18, height: 18, borderRadius: "50%", border: `1px solid ${O}`, background: LO, color: O, fontSize: 9, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, padding: 0, lineHeight: 1 }}>↻</button>
+                          <button title="Retirer ce créneau" onClick={(e) => { e.stopPropagation(); unassign(existing.id); }}
+                            style={{ width: 18, height: 18, borderRadius: "50%", border: "1px solid #FECACA", background: "#FEE2E2", color: "#991B1B", fontSize: 10, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, padding: 0, lineHeight: 1 }}>×</button>
+                        </div>
                       </div>
                     ) : hidden ? (
                       <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: M, opacity: 0.5 }}>Occupé</div>
@@ -601,7 +617,7 @@ function AdminManage({ meetings, setMeetings }) {
 
   const decline = (id) => {
     const m = meetings.find(x => x.id === id);
-    if (m && m.slot && m.status === "confirmed") {
+    if (m && m.slot && (m.status === "confirmed" || m.status === "rescheduled")) {
       const [d, t] = m.slot.split("|");
       notifySlot("cancelled", m, d, t);
     }
@@ -618,7 +634,7 @@ function AdminManage({ meetings, setMeetings }) {
     <div>
       <STitle sub="Gérer individuellement chaque demande — la confirmation envoie un e-mail au partenaire">Gestion des demandes</STitle>
       <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
-        {[["all", "Toutes"], ["pending", "En attente"], ["placed", "Placées"], ["confirmed", "Confirmées"], ["declined", "Déclinées"]].map(([k, l]) => (
+        {[["all", "Toutes"], ["pending", "En attente"], ["placed", "Placées"], ["confirmed", "Confirmées"], ["rescheduled", "Modifiées"], ["declined", "Déclinées"]].map(([k, l]) => (
           <button key={k} onClick={() => setFilter(k)} style={{ padding: "8px 16px", border: `1px solid ${filter === k ? G : BD}`, borderRadius: 8, background: filter === k ? LG : W, color: filter === k ? G : M, fontWeight: 600, fontSize: 12, cursor: "pointer" }}>
             {l} ({k === "all" ? meetings.length : meetings.filter(m => m.status === k).length})
           </button>
@@ -640,7 +656,7 @@ function AdminManage({ meetings, setMeetings }) {
                   <div style={{ fontSize: 13, color: D, marginBottom: 4 }}>{m.topic}</div>
                   <div style={{ fontSize: 12, color: M }}>{m.contact} · {m.email}</div>
                   <div style={{ fontSize: 12, color: M }}>Préférences : {m.prefs?.map(p => prefLabel(p)).join(" / ")}</div>
-                  {slotLabel && <div style={{ fontSize: 12, color: m.status === "confirmed" ? G : "#1E40AF", fontWeight: 700, marginTop: 4 }}>📍 Créneau : {slotLabel}{m.status === "placed" ? " (en attente de confirmation)" : ""}</div>}
+                  {slotLabel && <div style={{ fontSize: 12, color: m.status === "confirmed" ? G : m.status === "rescheduled" ? "#9A3412" : "#1E40AF", fontWeight: 700, marginTop: 4 }}>📍 Créneau : {slotLabel}{m.status === "placed" ? " (en attente de confirmation)" : ""}{m.status === "rescheduled" ? " (modifié — à confirmer)" : ""}</div>}
                 </div>
                 <StatusBadge status={m.status} />
               </div>
@@ -655,6 +671,9 @@ function AdminManage({ meetings, setMeetings }) {
               <div style={{ display: "flex", gap: 8, borderTop: `1px solid ${BD}`, paddingTop: 12, alignItems: "center" }}>
                 {(m.status === "placed" || m.status === "pending") && m.slot && (
                   <button onClick={() => confirm(m.id)} style={{ padding: "7px 18px", background: G, color: "#fff", border: "none", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>✅ Confirmer & notifier</button>
+                )}
+                {m.status === "rescheduled" && m.slot && (
+                  <button onClick={() => confirm(m.id)} style={{ padding: "7px 18px", background: G, color: "#fff", border: "none", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>✅ Confirmer le nouveau créneau</button>
                 )}
                 {m.status === "placed" && !m.slot && (
                   <span style={{ fontSize: 11, color: M, fontStyle: "italic" }}>Placez d'abord un créneau dans le planning avant de confirmer</span>
@@ -679,8 +698,9 @@ function AdminManage({ meetings, setMeetings }) {
 // ─── MAIN ───
 
 function App() {
-  const [user, setUser] = useState(null);
-  const [view, setView] = useState(null);
+  const [user, setUser] = useState(null);        // null = public ; sinon admin connecté
+  const [showLogin, setShowLogin] = useState(false); // écran de login admin
+  const [view, setView] = useState("dashboard");
   const [meetings, setMeetings] = useState(() => {
     try { const saved = localStorage.getItem("dgf_meetings"); return saved ? JSON.parse(saved) : INIT_MEETINGS; } catch { return INIT_MEETINGS; }
   });
@@ -689,23 +709,61 @@ function App() {
     try { localStorage.setItem("dgf_meetings", JSON.stringify(meetings)); } catch {}
   }, [meetings]);
 
-  const addMeeting = (m, userId) => {
-    const newMeeting = { ...m, id: Date.now(), userId, status: "pending", priority: "medium", slot: null, note: "" };
+  const addMeeting = (m) => {
+    const newMeeting = { ...m, id: Date.now(), status: "pending", priority: "medium", slot: null, note: "" };
     setMeetings(prev => [...prev, newMeeting]);
   };
 
-  const login = (u) => { setUser(u); setView(u.role === "admin" ? "dashboard" : "request"); };
-  const logout = () => { setUser(null); setView(null); };
+  const login = (u) => { setUser(u); setShowLogin(false); setView("dashboard"); };
+  const logout = () => { setUser(null); setShowLogin(false); };
 
-  if (!user) return <LoginScreen onLogin={login} />;
+  // ── ÉCRAN DE LOGIN ADMIN ──
+  if (showLogin && !user) return <LoginScreen onLogin={login} onBack={() => setShowLogin(false)} />;
 
-  const isAdmin = user.role === "admin";
+  // ── PORTAIL PUBLIC (aucun compte requis) ──
+  if (!user) {
+    return (
+      <div style={{ fontFamily: "'Montserrat', 'Segoe UI', sans-serif", background: BG, minHeight: "100vh", display: "flex", flexDirection: "column", color: D }}>
+        {/* HEADER PUBLIC */}
+        <header style={{ background: W, borderBottom: `1px solid ${BD}`, padding: "18px 24px" }}>
+          <div style={{ maxWidth: 860, margin: "0 auto", display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ width: 40, height: 40, borderRadius: 8, flexShrink: 0, background: `linear-gradient(135deg, ${O}, ${G})`, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 900, fontSize: 14 }}>DGF</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 15, fontWeight: 800, color: D }}>Portail Rencontres Investisseurs</div>
+              <div style={{ fontSize: 10, fontWeight: 600, color: G, letterSpacing: 0.5, textTransform: "uppercase" }}>Direction Générale des Financements — Côte d'Ivoire</div>
+            </div>
+          </div>
+        </header>
+
+        {/* BANNIÈRE ÉVÉNEMENT */}
+        <div style={{ background: `linear-gradient(135deg, ${G}, #026330)`, color: "#fff", padding: "10px 24px", textAlign: "center", fontSize: 12, fontWeight: 600 }}>
+          🗓️ {EVENT_TITLE} — {EVENT_SUBTITLE}
+        </div>
+
+        {/* CONTENU */}
+        <main style={{ flex: 1, padding: "32px 24px", width: "100%", maxWidth: 860, margin: "0 auto", boxSizing: "border-box" }}>
+          <PartnerForm onSubmit={addMeeting} />
+        </main>
+
+        {/* PIED DE PAGE + ACCÈS DGF DISCRET */}
+        <footer style={{ borderTop: `1px solid ${BD}`, padding: "18px 24px", textAlign: "center", background: W }}>
+          <div style={{ fontSize: 11, color: M, marginBottom: 8 }}>© {EVENEMENT.annee} Direction Générale des Financements — République de Côte d'Ivoire</div>
+          <button onClick={() => setShowLogin(true)} style={{ background: "none", border: "none", color: M, fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", opacity: 0.7 }}>Accès DGF</button>
+          <div style={{ marginTop: 8, fontSize: 9, color: M, opacity: 0.6 }}>Cellule Intelligence Artificielle — DGF</div>
+        </footer>
+      </div>
+    );
+  }
+
+  // ── ESPACE ADMIN (connecté) ──
   const toPlace = meetings.filter(m => m.status === "pending").length;
-  const toConfirm = meetings.filter(m => m.status === "placed").length;
+  const toConfirm = meetings.filter(m => m.status === "placed" || m.status === "rescheduled").length;
 
-  const nav = isAdmin
-    ? [{ id: "dashboard", icon: "📊", label: "Tableau de bord" }, { id: "planning", icon: "🗓️", label: "Planning", badge: toPlace }, { id: "manage", icon: "📋", label: "Demandes", badge: toConfirm }]
-    : [{ id: "request", icon: "📝", label: "Nouvelle demande" }, { id: "mystatus", icon: "🔍", label: "Mes demandes" }];
+  const nav = [
+    { id: "dashboard", icon: "📊", label: "Tableau de bord" },
+    { id: "planning", icon: "🗓️", label: "Planning", badge: toPlace },
+    { id: "manage", icon: "📋", label: "Demandes", badge: toConfirm },
+  ];
 
   return (
     <div style={{ fontFamily: "'Montserrat', 'Segoe UI', sans-serif", background: BG, minHeight: "100vh", display: "flex", color: D }}>
@@ -715,11 +773,11 @@ function App() {
             <div style={{ width: 36, height: 36, borderRadius: 8, flexShrink: 0, background: `linear-gradient(135deg, ${O}, ${G})`, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 900, fontSize: 13 }}>DGF</div>
             <div><div style={{ fontSize: 13, fontWeight: 800, color: D }}>Portail Meetings</div><div style={{ fontSize: 10, fontWeight: 600, color: G, letterSpacing: 0.5 }}>CÔTE D'IVOIRE</div></div>
           </div>
-          <div style={{ fontSize: 10, color: M, padding: "6px 10px", background: BG, borderRadius: 6, textAlign: "center", fontWeight: 600 }}>Assemblées Annuelles FMI 2026</div>
+          <div style={{ fontSize: 10, color: M, padding: "6px 10px", background: BG, borderRadius: 6, textAlign: "center", fontWeight: 600 }}>{EVENT_TITLE}</div>
         </div>
 
-        <div style={{ margin: "14px 12px 6px", padding: "10px 14px", borderRadius: 8, background: isAdmin ? LG : LO, border: `1px solid ${isAdmin ? "#A7D5B8" : "#F5D89A"}` }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: isAdmin ? G : O, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 3 }}>{isAdmin ? "Espace Administration" : "Espace Partenaire"}</div>
+        <div style={{ margin: "14px 12px 6px", padding: "10px 14px", borderRadius: 8, background: LG, border: `1px solid #A7D5B8` }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: G, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 3 }}>Espace Administration</div>
           <div style={{ fontSize: 12, fontWeight: 600, color: D, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user.name}</div>
         </div>
 
@@ -736,11 +794,9 @@ function App() {
       </aside>
 
       <main style={{ flex: 1, padding: 32, maxWidth: 960, overflow: "auto" }}>
-        {isAdmin && view === "dashboard" && <AdminDash meetings={meetings} />}
-        {isAdmin && view === "planning" && <PlanningBoard meetings={meetings} setMeetings={setMeetings} />}
-        {isAdmin && view === "manage" && <AdminManage meetings={meetings} setMeetings={setMeetings} />}
-        {!isAdmin && view === "request" && <PartnerForm user={user} onSubmit={(m) => addMeeting(m, user.id)} />}
-        {!isAdmin && view === "mystatus" && <PartnerStatus user={user} meetings={meetings} />}
+        {view === "dashboard" && <AdminDash meetings={meetings} />}
+        {view === "planning" && <PlanningBoard meetings={meetings} setMeetings={setMeetings} />}
+        {view === "manage" && <AdminManage meetings={meetings} setMeetings={setMeetings} />}
       </main>
     </div>
   );
