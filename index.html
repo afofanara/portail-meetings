@@ -39,18 +39,21 @@ const WEBHOOK_SLOT_URL = "https://astou-labs.app.n8n.cloud/webhook/placement-cre
 //  ┌────────────────────────────────────────────────────────────┐
 //  │  POUR CHANGER D'ÉVÉNEMENT CHAQUE ANNÉE :                    │
 //  │  Modifiez UNIQUEMENT le bloc EVENEMENT ci-dessous.         │
-//  │  - nom   : intitulé affiché                                │
-//  │  - ville : lieu de l'événement                             │
+//  │  - actif : true = mode Assemblées (grille datée)          │
+//  │            false = mode Permanent (vitrine toute l'année)  │
+//  │  - nom / ville : intitulé et lieu affichés                │
 //  │  - debut / fin : dates au format "AAAA-MM-JJ"             │
-//  │  Les jours du calendrier sont générés automatiquement.    │
+//  │  - joursOuvresSeulement : true = exclut samedis/dimanches │
 //  └────────────────────────────────────────────────────────────┘
 // ══════════════════════════════════════════════════════════════════
 const EVENEMENT = {
+  actif: true,           // ← true : mode Assemblées | false : mode Permanent (vitrine)
   nom: "Assemblées Annuelles FMI / Banque mondiale",
   annee: 2026,
   ville: "Bangkok",
   debut: "2026-10-12",   // Lundi 12 octobre 2026
   fin: "2026-10-18",     // Dimanche 18 octobre 2026
+  joursOuvresSeulement: true,  // ← exclut automatiquement samedis et dimanches
 };
 
 // ── Génération automatique des jours à partir de EVENEMENT ──
@@ -63,9 +66,12 @@ const buildDays = () => {
   const start = new Date(EVENEMENT.debut + "T00:00:00");
   const end = new Date(EVENEMENT.fin + "T00:00:00");
   for (let dt = new Date(start); dt <= end; dt.setDate(dt.getDate() + 1)) {
+    const dow = dt.getDay();
+    // Exclusion des week-ends si joursOuvresSeulement est activé
+    if (EVENEMENT.joursOuvresSeulement && (dow === 0 || dow === 6)) continue;
     const y = dt.getFullYear(), m = String(dt.getMonth() + 1).padStart(2, "0"), d = String(dt.getDate()).padStart(2, "0");
     const key = `${y}-${m}-${d}`;
-    const dow = dt.getDay(), dayNum = dt.getDate();
+    const dayNum = dt.getDate();
     days.push({
       key,
       label: `${JOURS_FR_COURT[dow]} ${dayNum}`,
@@ -95,15 +101,32 @@ const USERS = {
   dgf: { password: "dgf2026", role: "admin", label: "DGF", name: "DGF – Direction Générale des Financements" },
 };
 
-const HOURS = ["08:00", "09:00", "10:00", "11:00", "14:00", "15:00", "16:00"];
-const HOUR_LABELS = { "08:00": "8h", "09:00": "9h", "10:00": "10h", "11:00": "11h", "14:00": "14h", "15:00": "15h", "16:00": "16h" };
+// ── Grille horaire (pas de 30 min, 8h–18h, pause déjeuner 12h30–14h) ──
+const HEURE_DEBUT = 8, HEURE_FIN = 18, PAUSE_DEBUT = "12:30", PAUSE_FIN = "14:00";
+const buildHours = () => {
+  const hours = [];
+  for (let h = HEURE_DEBUT; h < HEURE_FIN; h++) {
+    for (const min of ["00", "30"]) {
+      const t = `${String(h).padStart(2, "0")}:${min}`;
+      // Saut de la pause déjeuner (12h30 et 13h30 inclus)
+      if (t >= PAUSE_DEBUT && t < PAUSE_FIN) continue;
+      hours.push(t);
+    }
+  }
+  return hours;
+};
+const HOURS = buildHours();
+const HOUR_LABELS = Object.fromEntries(HOURS.map(t => {
+  const [h, m] = t.split(":");
+  return [t, m === "00" ? `${parseInt(h)}h` : `${parseInt(h)}h${m}`];
+}));
 
 // Préférences de jours générées depuis DAYS
 const PREF_DAYS = DAYS.map(d => ({ value: d.key, label: d.short, dayKey: d.key }));
 const PREF_PERIODS = [
-  { value: "matin", label: "Matin (8h–12h)", hours: ["08:00", "09:00", "10:00", "11:00"] },
-  { value: "aprem", label: "Après-midi (14h–17h)", hours: ["14:00", "15:00", "16:00"] },
-  { value: "journee", label: "Journée entière", hours: ["08:00", "09:00", "10:00", "11:00", "14:00", "15:00", "16:00"] },
+  { value: "matin", label: "Matin (8h–12h30)", hours: HOURS.filter(t => t < "12:30") },
+  { value: "aprem", label: "Après-midi (14h–18h)", hours: HOURS.filter(t => t >= "14:00") },
+  { value: "journee", label: "Journée entière", hours: HOURS },
 ];
 
 const INIT_MEETINGS = [];
@@ -113,6 +136,19 @@ const prefLabel = (p) => {
   const d = PREF_DAYS.find(x => x.value === p.day);
   const pr = PREF_PERIODS.find(x => x.value === p.period);
   return `${d?.label || "?"} ${pr?.label?.split(" ")[0]?.toLowerCase() || ""}`;
+};
+
+// Libellé de disponibilité, quel que soit le mode du meeting
+const PERIODE_FR = { matin: "matin", aprem: "après-midi", flexible: "flexible", journee: "journée" };
+const MODALITE_FR = { presentiel: "présentiel", visio: "visio", appel: "appel" };
+const dispoLabel = (m) => {
+  if (m.mode === "permanent") {
+    const parts = [m.permDateLisible || "date à préciser"];
+    if (m.permPeriode) parts.push(PERIODE_FR[m.permPeriode] || m.permPeriode);
+    if (m.permModalite) parts.push(MODALITE_FR[m.permModalite] || m.permModalite);
+    return parts.join(" · ");
+  }
+  return m.prefs?.map(p => prefLabel(p)).join(" / ") || "—";
 };
 
 const matchesPref = (meeting, dayKey, hour) => {
@@ -237,13 +273,20 @@ function PrefSelector({ index, pref, onChange, error }) {
 
 // ─── PARTNER: REQUEST FORM ───
 
-function PartnerForm({ onSubmit }) {
+function PartnerForm({ onSubmit, assembleesActif }) {
+  const MODE_ASSEMBLEES = assembleesActif;
   const [form, setForm] = useState({ partner: "", org: "", contact: "", email: "", phone: "", target: "DGF", topic: "", details: "" });
   const [prefs, setPrefs] = useState([{ day: "", period: "" }, { day: "", period: "" }, { day: "", period: "" }]);
+  // Champs du mode permanent
+  const [perm, setPerm] = useState({ date: "", periode: "matin", modalite: "presentiel" });
   const [errors, setErrors] = useState({});
   const [done, setDone] = useState(false);
   const [sending, setSending] = useState(false);
   const s = (k, v) => { setForm(f => ({ ...f, [k]: v })); setErrors(e => ({ ...e, [k]: undefined })); };
+  const sp = (k, v) => { setPerm(p => ({ ...p, [k]: v })); setErrors(e => ({ ...e, permDate: undefined })); };
+
+  const PERIODE_LABELS = { matin: "Matin (8h–12h30)", aprem: "Après-midi (14h–18h)", flexible: "Flexible" };
+  const MODALITE_LABELS = { presentiel: "Présentiel (Abidjan)", visio: "Visioconférence", appel: "Appel téléphonique" };
 
   const validate = () => {
     const e = {};
@@ -252,7 +295,11 @@ function PartnerForm({ onSubmit }) {
     if (!form.email.trim()) e.email = "Champ requis";
     else if (!/\S+@\S+\.\S+/.test(form.email)) e.email = "E-mail invalide";
     if (!form.topic.trim()) e.topic = "Champ requis";
-    if (!prefs[0].day || !prefs[0].period) e.pref1 = "Sélectionnez au moins une préférence";
+    if (MODE_ASSEMBLEES) {
+      if (!prefs[0].day || !prefs[0].period) e.pref1 = "Sélectionnez au moins une préférence";
+    } else {
+      if (!perm.date) e.permDate = "Indiquez une date souhaitée";
+    }
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -260,12 +307,23 @@ function PartnerForm({ onSubmit }) {
   const handleSubmit = async () => {
     if (!validate()) return;
     setSending(true);
-    const prefLabelsForWebhook = prefs.filter(p => p.day && p.period).map(p => prefLabel(p));
+    // Construction des libellés de disponibilité selon le mode
+    let prefStrings, submitData;
+    if (MODE_ASSEMBLEES) {
+      prefStrings = prefs.filter(p => p.day && p.period).map(p => prefLabel(p));
+      submitData = { prefs: prefs.filter(p => p.day && p.period) };
+    } else {
+      const dateLisible = perm.date ? new Date(perm.date + "T00:00:00").toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" }) : "";
+      const permLabel = `${dateLisible} — ${PERIODE_LABELS[perm.periode]} — ${MODALITE_LABELS[perm.modalite]}`;
+      prefStrings = [permLabel];
+      submitData = { permDate: perm.date, permDateLisible: dateLisible, permPeriode: perm.periode, permModalite: perm.modalite, prefs: [] };
+    }
     try {
       await fetch(WEBHOOK_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          mode: MODE_ASSEMBLEES ? "assemblees" : "permanent",
           partner: form.partner,
           org: form.org,
           contact: form.contact,
@@ -274,9 +332,9 @@ function PartnerForm({ onSubmit }) {
           target: form.target,
           topic: form.topic,
           details: form.details,
-          pref1: prefLabelsForWebhook[0] || "",
-          pref2: prefLabelsForWebhook[1] || "",
-          pref3: prefLabelsForWebhook[2] || "",
+          pref1: prefStrings[0] || "",
+          pref2: prefStrings[1] || "",
+          pref3: prefStrings[2] || "",
         }),
       });
     } catch (err) {
@@ -284,13 +342,14 @@ function PartnerForm({ onSubmit }) {
     }
     setSending(false);
     onSubmit({
+      mode: MODE_ASSEMBLEES ? "assemblees" : "permanent",
       partner: form.partner,
       org: form.org,
       contact: form.contact,
       email: form.email,
       target: form.target,
       topic: form.topic,
-      prefs: prefs.filter(p => p.day && p.period),
+      ...submitData,
     });
     setDone(true);
   };
@@ -311,13 +370,13 @@ function PartnerForm({ onSubmit }) {
       <div style={{ fontSize: 48, marginBottom: 16 }}>✅</div>
       <div style={{ fontSize: 20, fontWeight: 800, color: D, marginBottom: 8 }}>Demande envoyée avec succès</div>
       <p style={{ fontSize: 14, color: M, maxWidth: 440, margin: "0 auto", lineHeight: 1.7 }}>Votre demande de rencontre a été enregistrée. Un accusé de réception vous a été envoyé par e-mail. Vous serez notifié dès qu'un créneau vous sera attribué.</p>
-      <button onClick={() => { setDone(false); setForm(f => ({ ...f, topic: "", details: "" })); setPrefs([{ day: "", period: "" }, { day: "", period: "" }, { day: "", period: "" }]); }} style={{ marginTop: 28, padding: "10px 28px", background: O, color: "#fff", border: "none", borderRadius: 8, fontWeight: 700, fontSize: 14, cursor: "pointer" }}>Nouvelle demande</button>
+      <button onClick={() => { setDone(false); setForm(f => ({ ...f, topic: "", details: "" })); setPrefs([{ day: "", period: "" }, { day: "", period: "" }, { day: "", period: "" }]); setPerm({ date: "", periode: "matin", modalite: "presentiel" }); }} style={{ marginTop: 28, padding: "10px 28px", background: O, color: "#fff", border: "none", borderRadius: 8, fontWeight: 700, fontSize: 14, cursor: "pointer" }}>Nouvelle demande</button>
     </Card>
   );
 
   return (
     <div>
-      <STitle sub="Soumettez une demande de rencontre bilatérale avec la délégation ivoirienne">Demande de rencontre</STitle>
+      <STitle sub={MODE_ASSEMBLEES ? "Soumettez une demande de rencontre bilatérale avec la délégation ivoirienne" : "Sollicitez une rencontre avec la Direction Générale des Financements"}>Demande de rencontre</STitle>
       <Card>
         <BlockTitle>Informations du partenaire</BlockTitle>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 16, marginBottom: 28 }}>
@@ -343,16 +402,44 @@ function PartnerForm({ onSubmit }) {
           </InputField>
         </div>
 
-        <BlockTitle>Préférences de créneaux</BlockTitle>
-        <div style={{ padding: "12px 16px", background: BG, borderRadius: 8, marginBottom: 16, fontSize: 12, color: M, lineHeight: 1.6 }}>
-          Les assemblées se tiennent à <strong style={{ color: D }}>{EVENEMENT.ville}, du {EVENT_PERIOD_LABEL}</strong>. Sélectionnez vos préférences par ordre de priorité. L'agenda définitif sera confirmé ~3 semaines avant.
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 28 }}>
-          {prefs.map((p, i) => (
-            <PrefSelector key={i} index={i + 1} pref={p} onChange={np => { const n = [...prefs]; n[i] = np; setPrefs(n); setErrors(e => ({ ...e, pref1: undefined })); }} error={i === 0 && errors.pref1} />
-          ))}
-          {errors.pref1 && <div style={{ fontSize: 11, color: "#DC2626", fontWeight: 600 }}>{errors.pref1}</div>}
-        </div>
+        {MODE_ASSEMBLEES ? (
+          <>
+            <BlockTitle>Préférences de créneaux</BlockTitle>
+            <div style={{ padding: "12px 16px", background: BG, borderRadius: 8, marginBottom: 16, fontSize: 12, color: M, lineHeight: 1.6 }}>
+              Les assemblées se tiennent à <strong style={{ color: D }}>{EVENEMENT.ville}, du {EVENT_PERIOD_LABEL}</strong>. Sélectionnez vos préférences par ordre de priorité. L'agenda définitif sera confirmé ~3 semaines avant.
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 28 }}>
+              {prefs.map((p, i) => (
+                <PrefSelector key={i} index={i + 1} pref={p} onChange={np => { const n = [...prefs]; n[i] = np; setPrefs(n); setErrors(e => ({ ...e, pref1: undefined })); }} error={i === 0 && errors.pref1} />
+              ))}
+              {errors.pref1 && <div style={{ fontSize: 11, color: "#DC2626", fontWeight: 600 }}>{errors.pref1}</div>}
+            </div>
+          </>
+        ) : (
+          <>
+            <BlockTitle>Disponibilités souhaitées</BlockTitle>
+            <div style={{ padding: "12px 16px", background: BG, borderRadius: 8, marginBottom: 16, fontSize: 12, color: M, lineHeight: 1.6 }}>
+              Indiquez la date qui vous conviendrait. La <strong style={{ color: D }}>Direction Générale des Financements</strong> reviendra vers vous pour confirmer un créneau précis.
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 16, marginBottom: 28 }}>
+              <InputField label="Date souhaitée" req half type="date" value={perm.date} onChange={e => sp("date", e.target.value)} error={errors.permDate} />
+              <InputField label="Période" half>
+                <select value={perm.periode} onChange={e => sp("periode", e.target.value)} style={{ width: "100%", padding: "10px 12px", border: `1px solid ${BD}`, borderRadius: 8, fontSize: 14, background: BG, fontFamily: "inherit", cursor: "pointer" }}>
+                  <option value="matin">Matin (8h–12h30)</option>
+                  <option value="aprem">Après-midi (14h–18h)</option>
+                  <option value="flexible">Flexible</option>
+                </select>
+              </InputField>
+              <InputField label="Modalité de la rencontre" half>
+                <select value={perm.modalite} onChange={e => sp("modalite", e.target.value)} style={{ width: "100%", padding: "10px 12px", border: `1px solid ${BD}`, borderRadius: 8, fontSize: 14, background: BG, fontFamily: "inherit", cursor: "pointer" }}>
+                  <option value="presentiel">Présentiel (Abidjan)</option>
+                  <option value="visio">Visioconférence</option>
+                  <option value="appel">Appel téléphonique</option>
+                </select>
+              </InputField>
+            </div>
+          </>
+        )}
 
         <div style={{ display: "flex", justifyContent: "flex-end" }}>
           <button onClick={handleSubmit} style={{ padding: "12px 40px", background: O, color: "#fff", border: "none", borderRadius: 8, fontWeight: 700, fontSize: 14, cursor: "pointer", boxShadow: "0 2px 12px rgba(236,141,8,0.3)" }}>Soumettre la demande</button>
@@ -364,15 +451,40 @@ function PartnerForm({ onSubmit }) {
 
 // ─── ADMIN: DASHBOARD ───
 
-function AdminDash({ meetings }) {
+function AdminDash({ meetings, assembleesActif, setAssembleesActif, setView }) {
   const co = meetings.filter(m => m.status === "confirmed").length;
   const pl = meetings.filter(m => m.status === "placed").length;
   const pe = meetings.filter(m => m.status === "pending").length;
   const byT = {}; meetings.forEach(m => { byT[m.target] = (byT[m.target] || 0) + 1; });
 
+  const switchMode = (toAssemblees) => {
+    setAssembleesActif(toAssemblees);
+    // Si on quitte le mode assemblées alors qu'on regardait le planning, revenir au tableau de bord
+    if (!toAssemblees && setView) setView("dashboard");
+  };
+
   return (
     <div>
       <STitle sub="Vue d'ensemble des demandes de rencontres bilatérales">Tableau de bord</STitle>
+
+      {/* ─── INTERRUPTEUR DE MODE ─── */}
+      <Card style={{ padding: 18, marginBottom: 20, border: `1px solid ${assembleesActif ? "#A7D5B8" : "#F5D89A"}`, background: assembleesActif ? "#F3FAF5" : "#FEF9F0" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 14 }}>
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 800, color: D, marginBottom: 3, textTransform: "uppercase", letterSpacing: 0.5 }}>Mode du portail</div>
+            <div style={{ fontSize: 12, color: M, lineHeight: 1.5, maxWidth: 440 }}>
+              {assembleesActif
+                ? <>Les investisseurs voient le <strong style={{ color: G }}>calendrier daté de {EVENEMENT.ville}</strong> et choisissent des créneaux.</>
+                : <>Les investisseurs voient le <strong style={{ color: O }}>formulaire de demande libre</strong> (guichet ouvert toute l'année).</>}
+            </div>
+          </div>
+          <div style={{ display: "flex", background: W, borderRadius: 10, padding: 4, border: `1px solid ${BD}`, flexShrink: 0 }}>
+            <button onClick={() => switchMode(true)} style={{ padding: "10px 18px", borderRadius: 7, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, fontFamily: "inherit", background: assembleesActif ? G : "transparent", color: assembleesActif ? "#fff" : M, transition: "all 0.15s" }}>🗓️ Assemblées</button>
+            <button onClick={() => switchMode(false)} style={{ padding: "10px 18px", borderRadius: 7, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, fontFamily: "inherit", background: !assembleesActif ? O : "transparent", color: !assembleesActif ? "#fff" : M, transition: "all 0.15s" }}>🤝 Permanent</button>
+          </div>
+        </div>
+      </Card>
+
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 24 }}>
         {[{ l: "Total", v: meetings.length, i: "📋", bg: BG }, { l: "Confirmées", v: co, i: "✅", bg: LG }, { l: "Placées", v: pl, i: "📍", bg: "#DBEAFE" }, { l: "À placer", v: pe, i: "⏳", bg: "#FEF3C7" }].map((s, i) => (
           <Card key={i} style={{ textAlign: "center", padding: 18, background: s.bg }}>
@@ -407,7 +519,7 @@ function AdminDash({ meetings }) {
         <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 14, color: D }}>Toutes les demandes</div>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
           <thead><tr style={{ borderBottom: `2px solid ${BD}` }}>
-            {["", "Partenaire", "Objet", "Cible", "Préférence", "Créneau", "Statut"].map(h => (
+            {["", "Partenaire", "Objet", "Cible", "Souhait", "Créneau", "Statut"].map(h => (
               <th key={h} style={{ textAlign: "left", padding: "8px 6px", color: M, fontWeight: 700, fontSize: 10, textTransform: "uppercase", letterSpacing: 0.5 }}>{h}</th>
             ))}
           </tr></thead>
@@ -419,7 +531,7 @@ function AdminDash({ meetings }) {
                 <td style={{ padding: "10px 6px", fontWeight: 600, color: D }}>{m.partner}</td>
                 <td style={{ padding: "10px 6px", color: D, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.topic}</td>
                 <td style={{ padding: "10px 6px" }}><TargetBadge target={m.target} /></td>
-                <td style={{ padding: "10px 6px", color: M, fontSize: 11 }}>{m.prefs?.[0] ? prefLabel(m.prefs[0]) : "—"}</td>
+                <td style={{ padding: "10px 6px", color: M, fontSize: 11 }}>{dispoLabel(m)}</td>
                 <td style={{ padding: "10px 6px", color: m.slot ? G : M, fontWeight: m.slot ? 700 : 400, fontSize: 11 }}>{slotLabel}</td>
                 <td style={{ padding: "10px 6px" }}><StatusBadge status={m.status} small /></td>
               </tr>
@@ -602,7 +714,8 @@ function PlanningBoard({ meetings, setMeetings }) {
 
 // ─── ADMIN: MANAGE LIST ───
 
-function AdminManage({ meetings, setMeetings }) {
+function AdminManage({ meetings, setMeetings, assembleesActif }) {
+  const MODE_PERMANENT = !assembleesActif;
   const [filter, setFilter] = useState("all");
   const filtered = filter === "all" ? meetings : meetings.filter(m => m.status === filter);
 
@@ -630,9 +743,21 @@ function AdminManage({ meetings, setMeetings }) {
 
   const setNote = (id, note) => setMeetings(prev => prev.map(m => m.id === id ? { ...m, note } : m));
 
+  // Mode permanent : fixer date + heure libres sur une demande
+  const setFreeSlot = (id, freeDate, freeTime) => {
+    setMeetings(prev => prev.map(m => {
+      if (m.id !== id) return m;
+      // On stocke le slot sous forme "libellé lisible|heure" pour réutiliser la logique existante
+      const lisible = freeDate ? new Date(freeDate + "T00:00:00").toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" }) : "";
+      const slot = (freeDate && freeTime) ? `${lisible}|${freeTime}` : null;
+      const newStatus = slot ? (m.status === "confirmed" || m.status === "rescheduled" ? "rescheduled" : "placed") : "pending";
+      return { ...m, slotFreeDate: freeDate, slotFreeTime: freeTime, slot, status: slot ? newStatus : (m.status === "declined" ? "declined" : "pending") };
+    }));
+  };
+
   return (
     <div>
-      <STitle sub="Gérer individuellement chaque demande — la confirmation envoie un e-mail au partenaire">Gestion des demandes</STitle>
+      <STitle sub={MODE_PERMANENT ? "Fixez une date et une heure pour chaque demande, puis confirmez pour notifier le partenaire" : "Gérer individuellement chaque demande — la confirmation envoie un e-mail au partenaire"}>Gestion des demandes</STitle>
       <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
         {[["all", "Toutes"], ["pending", "En attente"], ["placed", "Placées"], ["confirmed", "Confirmées"], ["rescheduled", "Modifiées"], ["declined", "Déclinées"]].map(([k, l]) => (
           <button key={k} onClick={() => setFilter(k)} style={{ padding: "8px 16px", border: `1px solid ${filter === k ? G : BD}`, borderRadius: 8, background: filter === k ? LG : W, color: filter === k ? G : M, fontWeight: 600, fontSize: 12, cursor: "pointer" }}>
@@ -655,11 +780,25 @@ function AdminManage({ meetings, setMeetings }) {
                   </div>
                   <div style={{ fontSize: 13, color: D, marginBottom: 4 }}>{m.topic}</div>
                   <div style={{ fontSize: 12, color: M }}>{m.contact} · {m.email}</div>
-                  <div style={{ fontSize: 12, color: M }}>Préférences : {m.prefs?.map(p => prefLabel(p)).join(" / ")}</div>
+                  <div style={{ fontSize: 12, color: M }}>Souhait : {dispoLabel(m)}</div>
                   {slotLabel && <div style={{ fontSize: 12, color: m.status === "confirmed" ? G : m.status === "rescheduled" ? "#9A3412" : "#1E40AF", fontWeight: 700, marginTop: 4 }}>📍 Créneau : {slotLabel}{m.status === "placed" ? " (en attente de confirmation)" : ""}{m.status === "rescheduled" ? " (modifié — à confirmer)" : ""}</div>}
                 </div>
                 <StatusBadge status={m.status} />
               </div>
+
+              {/* SAISIE LIBRE DATE/HEURE — MODE PERMANENT UNIQUEMENT */}
+              {MODE_PERMANENT && m.status !== "declined" && (
+                <div style={{ marginBottom: 12, padding: "12px 14px", background: BG, borderRadius: 8, display: "flex", gap: 12, alignItems: "flex-end", flexWrap: "wrap" }}>
+                  <div style={{ flex: "1 1 180px" }}>
+                    <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: M, marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.5 }}>Date du rendez-vous</label>
+                    <input type="date" value={m.slotFreeDate || ""} onChange={e => setFreeSlot(m.id, e.target.value, m.slotFreeTime || "")} style={{ width: "100%", padding: "8px 10px", border: `1px solid ${BD}`, borderRadius: 6, fontSize: 13, background: W, fontFamily: "inherit", boxSizing: "border-box" }} />
+                  </div>
+                  <div style={{ flex: "1 1 120px" }}>
+                    <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: M, marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.5 }}>Heure</label>
+                    <input type="time" value={m.slotFreeTime || ""} onChange={e => setFreeSlot(m.id, m.slotFreeDate || "", e.target.value)} style={{ width: "100%", padding: "8px 10px", border: `1px solid ${BD}`, borderRadius: 6, fontSize: 13, background: W, fontFamily: "inherit", boxSizing: "border-box" }} />
+                  </div>
+                </div>
+              )}
 
               {/* NOTES */}
               <div style={{ marginBottom: 12 }}>
@@ -675,11 +814,8 @@ function AdminManage({ meetings, setMeetings }) {
                 {m.status === "rescheduled" && m.slot && (
                   <button onClick={() => confirm(m.id)} style={{ padding: "7px 18px", background: G, color: "#fff", border: "none", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>✅ Confirmer le nouveau créneau</button>
                 )}
-                {m.status === "placed" && !m.slot && (
-                  <span style={{ fontSize: 11, color: M, fontStyle: "italic" }}>Placez d'abord un créneau dans le planning avant de confirmer</span>
-                )}
-                {m.status === "pending" && !m.slot && (
-                  <span style={{ fontSize: 11, color: M, fontStyle: "italic" }}>Placez d'abord un créneau dans le planning</span>
+                {(m.status === "placed" || m.status === "pending") && !m.slot && (
+                  <span style={{ fontSize: 11, color: M, fontStyle: "italic" }}>{MODE_PERMANENT ? "Renseignez une date et une heure ci-dessus avant de confirmer" : "Placez d'abord un créneau dans le planning avant de confirmer"}</span>
                 )}
                 {m.status === "confirmed" && (
                   <span style={{ fontSize: 11, color: G, fontWeight: 600 }}>✅ Confirmé — partenaire notifié</span>
@@ -704,10 +840,19 @@ function App() {
   const [meetings, setMeetings] = useState(() => {
     try { const saved = localStorage.getItem("dgf_meetings"); return saved ? JSON.parse(saved) : INIT_MEETINGS; } catch { return INIT_MEETINGS; }
   });
+  // Mode du portail : mémorisé, modifiable par les Relations Investisseurs depuis l'admin.
+  // Valeur par défaut au premier lancement = EVENEMENT.actif (défini dans la config).
+  const [assembleesActif, setAssembleesActif] = useState(() => {
+    try { const saved = localStorage.getItem("dgf_mode_assemblees"); return saved === null ? EVENEMENT.actif : saved === "true"; } catch { return EVENEMENT.actif; }
+  });
 
   useEffect(() => {
     try { localStorage.setItem("dgf_meetings", JSON.stringify(meetings)); } catch {}
   }, [meetings]);
+
+  useEffect(() => {
+    try { localStorage.setItem("dgf_mode_assemblees", String(assembleesActif)); } catch {}
+  }, [assembleesActif]);
 
   const addMeeting = (m) => {
     const newMeeting = { ...m, id: Date.now(), status: "pending", priority: "medium", slot: null, note: "" };
@@ -735,14 +880,20 @@ function App() {
           </div>
         </header>
 
-        {/* BANNIÈRE ÉVÉNEMENT */}
-        <div style={{ background: `linear-gradient(135deg, ${G}, #026330)`, color: "#fff", padding: "10px 24px", textAlign: "center", fontSize: 12, fontWeight: 600 }}>
-          🗓️ {EVENT_TITLE} — {EVENT_SUBTITLE}
-        </div>
+        {/* BANNIÈRE (selon le mode) */}
+        {assembleesActif ? (
+          <div style={{ background: `linear-gradient(135deg, ${G}, #026330)`, color: "#fff", padding: "10px 24px", textAlign: "center", fontSize: 12, fontWeight: 600 }}>
+            🗓️ {EVENT_TITLE} — {EVENT_SUBTITLE}
+          </div>
+        ) : (
+          <div style={{ background: `linear-gradient(135deg, ${O}, #d47f06)`, color: "#fff", padding: "10px 24px", textAlign: "center", fontSize: 12, fontWeight: 600 }}>
+            🤝 Guichet permanent — Sollicitez une rencontre avec la Direction Générale des Financements
+          </div>
+        )}
 
         {/* CONTENU */}
         <main style={{ flex: 1, padding: "32px 24px", width: "100%", maxWidth: 860, margin: "0 auto", boxSizing: "border-box" }}>
-          <PartnerForm onSubmit={addMeeting} />
+          <PartnerForm onSubmit={addMeeting} assembleesActif={assembleesActif} />
         </main>
 
         {/* PIED DE PAGE + ACCÈS DGF DISCRET */}
@@ -759,11 +910,16 @@ function App() {
   const toPlace = meetings.filter(m => m.status === "pending").length;
   const toConfirm = meetings.filter(m => m.status === "placed" || m.status === "rescheduled").length;
 
-  const nav = [
-    { id: "dashboard", icon: "📊", label: "Tableau de bord" },
-    { id: "planning", icon: "🗓️", label: "Planning", badge: toPlace },
-    { id: "manage", icon: "📋", label: "Demandes", badge: toConfirm },
-  ];
+  const nav = assembleesActif
+    ? [
+        { id: "dashboard", icon: "📊", label: "Tableau de bord" },
+        { id: "planning", icon: "🗓️", label: "Planning", badge: toPlace },
+        { id: "manage", icon: "📋", label: "Demandes", badge: toConfirm },
+      ]
+    : [
+        { id: "dashboard", icon: "📊", label: "Tableau de bord" },
+        { id: "manage", icon: "📋", label: "Demandes", badge: toPlace + toConfirm },
+      ];
 
   return (
     <div style={{ fontFamily: "'Montserrat', 'Segoe UI', sans-serif", background: BG, minHeight: "100vh", display: "flex", color: D }}>
@@ -773,7 +929,7 @@ function App() {
             <div style={{ width: 36, height: 36, borderRadius: 8, flexShrink: 0, background: `linear-gradient(135deg, ${O}, ${G})`, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 900, fontSize: 13 }}>DGF</div>
             <div><div style={{ fontSize: 13, fontWeight: 800, color: D }}>Portail Meetings</div><div style={{ fontSize: 10, fontWeight: 600, color: G, letterSpacing: 0.5 }}>CÔTE D'IVOIRE</div></div>
           </div>
-          <div style={{ fontSize: 10, color: M, padding: "6px 10px", background: BG, borderRadius: 6, textAlign: "center", fontWeight: 600 }}>{EVENT_TITLE}</div>
+          <div style={{ fontSize: 10, color: M, padding: "6px 10px", background: BG, borderRadius: 6, textAlign: "center", fontWeight: 600 }}>{assembleesActif ? EVENT_TITLE : "Guichet permanent"}</div>
         </div>
 
         <div style={{ margin: "14px 12px 6px", padding: "10px 14px", borderRadius: 8, background: LG, border: `1px solid #A7D5B8` }}>
@@ -794,9 +950,9 @@ function App() {
       </aside>
 
       <main style={{ flex: 1, padding: 32, maxWidth: 960, overflow: "auto" }}>
-        {view === "dashboard" && <AdminDash meetings={meetings} />}
-        {view === "planning" && <PlanningBoard meetings={meetings} setMeetings={setMeetings} />}
-        {view === "manage" && <AdminManage meetings={meetings} setMeetings={setMeetings} />}
+        {view === "dashboard" && <AdminDash meetings={meetings} assembleesActif={assembleesActif} setAssembleesActif={setAssembleesActif} setView={setView} />}
+        {view === "planning" && assembleesActif && <PlanningBoard meetings={meetings} setMeetings={setMeetings} />}
+        {view === "manage" && <AdminManage meetings={meetings} setMeetings={setMeetings} assembleesActif={assembleesActif} />}
       </main>
     </div>
   );
